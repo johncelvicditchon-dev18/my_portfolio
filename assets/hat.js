@@ -39,7 +39,7 @@
   // Where the hat rests on the upper back, in image fractions.
   const BACK_X = 0.74;
   const BACK_Y = 0.34;
-  const HAT_SCALE = 1.3; // brim diameter / head width
+  const HAT_SCALE = 1.75; // brim diameter / head width
 
   const DEBUG = window.location.search.includes("hatDebug");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");

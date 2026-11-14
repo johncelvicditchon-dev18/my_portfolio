@@ -58,8 +58,9 @@ optimised `assets/about-cutout.webp` (same pixels, 191 KB instead of 1.4 MB) wit
 the original PNG as the fallback. The frame is gently turned in 3D and carries two
 lighting passes masked to the cut-out itself — a soft highlight from the upper left
 and a restrained shade on the lower right — plus a grounding shadow and ambient
-crimson halo. The section carries the same introduction as
-the hero, then a short note on how the work is built.
+crimson halo. Under the heading the section carries the full introduction —
+student, builder of practical software, and AI-assisted developer — followed by
+an open invitation for freelance projects, commissions and collaborations.
 
 ### Work
 
