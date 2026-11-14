@@ -1006,8 +1006,10 @@ p { text-wrap: pretty; }
   color: var(--text-soft);
 }
 
-/* Editorial block: both edges align, last line stays flush left. */
+/* Editorial block: both edges align, last line stays flush left.
+   One shared measure keeps all three paragraphs on the same right edge. */
 .about__body p {
+  max-width: 30.3rem;
   text-align: justify;
   text-justify: inter-word;
   hyphens: auto;
