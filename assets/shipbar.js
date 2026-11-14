@@ -27,6 +27,8 @@
     travel: 1,
     thumbH: 0,
     shown: 0,
+    flow: 0,
+    lastY: 0,
   };
 
   /* ── Geometry ─────────────────────────────────────────────── */
@@ -48,7 +50,16 @@
 
   /* ── Scroll sync ──────────────────────────────────────────── */
   function onScroll() {
-    if (!state.enabled || drag) return;
+    if (!state.enabled) return;
+
+    // Scroll speed feeds the current, so fast scrolling makes the
+    // ocean rush past the hull.
+    const y = window.scrollY;
+    const dy = Math.abs(y - state.lastY);
+    state.lastY = y;
+    state.flow = clamp(state.flow + dy / 320, 0, 1);
+
+    if (drag) return;
     render(progressFromScroll());
   }
 
@@ -70,7 +81,8 @@
     event.preventDefault();
     // A drag must win over any smooth scroll already in flight.
     window.scrollTo({ top: window.scrollY, behavior: "instant" });
-    drag = { y: event.clientY, p: state.shown };
+    drag = { y: event.clientY, p: progressFromScroll() };
+    render(drag.p);
     bar.classList.add("is-dragging");
     document.body.classList.add("is-shipdragging");
     thumb.setPointerCapture(event.pointerId);
@@ -123,15 +135,15 @@
 
   function seedBubbles() {
     bubbles.length = 0;
-    const count = Math.max(8, Math.round(waterSize.h / 52));
+    const count = Math.max(10, Math.round(waterSize.h / 46));
     for (let i = 0; i < count; i += 1) {
       bubbles.push({
         x: Math.random() * waterSize.w,
         y: Math.random() * waterSize.h,
-        r: 0.6 + Math.random() * 1.8,
+        r: 0.8 + Math.random() * 2,
         speed: 10 + Math.random() * 26,
         drift: Math.random() * TAU,
-        alpha: 0.12 + Math.random() * 0.3,
+        alpha: 0.16 + Math.random() * 0.3,
       });
     }
   }
@@ -141,6 +153,8 @@
     const { w, h } = waterSize;
     const dt = waterPrev ? Math.min(0.1, Math.max(0, time - waterPrev)) : 0;
     waterPrev = time;
+    state.flow = Math.max(0, state.flow - dt * 0.85);
+    const rush = state.flow;
     water.clearRect(0, 0, w, h);
 
     // Where the hull meets the water (image is ~70% down the thumb).
@@ -156,12 +170,24 @@
     water.fillStyle = depth;
     water.fillRect(0, 0, w, h);
 
-    // Caustic light shafts drifting down the column.
+    // Soft currents: slow, volumetric patches of blue-green light.
+    for (let i = 0; i < 3; i += 1) {
+      const bx = w * (0.32 + 0.36 * Math.sin(time * 0.18 + i * 2.1));
+      const by = (h * (0.18 + i * 0.31) - time * 7 + h) % h;
+      const blob = water.createRadialGradient(bx, by, 0, bx, by, w * 1.1);
+      blob.addColorStop(0, "rgba(62, 196, 226, 0.10)");
+      blob.addColorStop(0.55, "rgba(16, 96, 130, 0.05)");
+      blob.addColorStop(1, "rgba(2, 20, 34, 0)");
+      water.fillStyle = blob;
+      water.fillRect(0, by - w, w, w * 2);
+    }
+
+    // Caustic light shafts drifting up the column.
     for (let i = 0; i < 4; i += 1) {
-      const phase = ((time * 17 + i * 118) % (h + 180)) - 90;
+      const phase = h + 90 - ((time * (16 + rush * 60) + i * 118) % (h + 180));
       const shaft = water.createLinearGradient(0, phase, w, phase + 110);
       shaft.addColorStop(0, "rgba(150, 238, 255, 0)");
-      shaft.addColorStop(0.5, `rgba(164, 242, 255, ${(0.045 + i * 0.01).toFixed(3)})`);
+      shaft.addColorStop(0.5, `rgba(164, 242, 255, ${(0.045 + i * 0.01 + rush * 0.03).toFixed(3)})`);
       shaft.addColorStop(1, "rgba(150, 238, 255, 0)");
       water.fillStyle = shaft;
       water.fillRect(0, phase, w, 110);
@@ -169,8 +195,8 @@
 
     // Swell crests sliding upward past the ship.
     const gap = 32;
-    const drift = (time * 13) % gap;
-    water.lineWidth = 1.2;
+    const drift = -((time * (13 + rush * 120)) % gap);
+    water.lineWidth = 1.5;
     for (let i = -1; i < h / gap + 2; i += 1) {
       const base = i * gap + drift;
       water.beginPath();
@@ -180,17 +206,36 @@
         else water.lineTo(x, y);
       }
       const crest = water.createLinearGradient(0, 0, w, 0);
-      crest.addColorStop(0, "rgba(120, 220, 255, 0.03)");
-      crest.addColorStop(0.42, "rgba(196, 248, 255, 0.20)");
-      crest.addColorStop(0.72, "rgba(96, 190, 226, 0.10)");
+      crest.addColorStop(0, "rgba(120, 220, 255, 0.04)");
+      crest.addColorStop(0.4, "rgba(204, 250, 255, 0.30)");
+      crest.addColorStop(0.72, "rgba(96, 190, 226, 0.14)");
       crest.addColorStop(1, "rgba(0, 30, 50, 0)");
       water.strokeStyle = crest;
       water.stroke();
+
+      // shaded trough just below each crest
+      water.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const y = base + 4 + Math.sin(x * 0.11 + time * 1.15 + i * 0.6) * 2.2;
+        if (x === 0) water.moveTo(x, y);
+        else water.lineTo(x, y);
+      }
+      water.strokeStyle = "rgba(0, 16, 28, 0.22)";
+      water.stroke();
     }
+
+    // Soft column of light running down the water.
+    const coreX = w * (0.52 + Math.sin(time * 0.35) * 0.16);
+    const core = water.createLinearGradient(coreX - 18, 0, coreX + 18, 0);
+    core.addColorStop(0, "rgba(120, 230, 255, 0)");
+    core.addColorStop(0.5, "rgba(176, 246, 255, 0.10)");
+    core.addColorStop(1, "rgba(120, 230, 255, 0)");
+    water.fillStyle = core;
+    water.fillRect(0, 0, w, h);
 
     // Rising bubbles, independent of the ship's position.
     for (const bubble of bubbles) {
-      bubble.y -= bubble.speed * dt;
+      bubble.y -= bubble.speed * (1 + rush * 2.4) * dt;
       if (bubble.y < -4) {
         bubble.y = h + 4;
         bubble.x = Math.random() * w;
@@ -208,8 +253,8 @@
 
     // Wake trailing upward from the hull (the ship sails downward).
     const wake = water.createLinearGradient(0, shipY, 0, shipY - 150);
-    wake.addColorStop(0, "rgba(226, 251, 255, 0.22)");
-    wake.addColorStop(0.35, "rgba(190, 242, 255, 0.10)");
+    wake.addColorStop(0, `rgba(226, 251, 255, ${(0.3 + rush * 0.18).toFixed(3)})`);
+    wake.addColorStop(0.35, "rgba(190, 242, 255, 0.14)");
     wake.addColorStop(1, "rgba(170, 236, 255, 0)");
     water.fillStyle = wake;
     water.fillRect(0, shipY - 150, w, 150);
@@ -226,10 +271,30 @@
     for (let i = 0; i < 3; i += 1) {
       const yy = shipY + Math.sin(time * 2 + i * 1.7) * 3 + (i - 1) * 6;
       const foam = water.createRadialGradient(w * 0.55, yy, 0, w * 0.55, yy, w * 0.95);
-      foam.addColorStop(0, `rgba(240, 254, 255, ${(0.22 - i * 0.045).toFixed(3)})`);
+      foam.addColorStop(0, `rgba(240, 254, 255, ${(0.26 - i * 0.05 + rush * 0.08).toFixed(3)})`);
       foam.addColorStop(1, "rgba(120, 214, 244, 0)");
       water.fillStyle = foam;
       water.fillRect(0, yy - 18, w, 36);
+    }
+
+    // Foam wisps peeling off the hull.
+    for (let i = 0; i < 6; i += 1) {
+      const phase = time * 1.25 + i * 2.1;
+      const fx = w * (0.16 + 0.66 * (((i * 0.27 + 0.13) % 1)));
+      const fy = shipY + Math.sin(phase) * 14 + (i - 3) * 4.5;
+      const alpha = 0.16 + Math.max(0, Math.sin(phase)) * 0.16;
+      water.beginPath();
+      water.ellipse(
+        fx,
+        fy,
+        2.2 + Math.abs(Math.sin(phase)) * 2.8,
+        0.7 + Math.abs(Math.cos(phase)) * 0.7,
+        Math.sin(phase) * 0.5,
+        0,
+        TAU,
+      );
+      water.fillStyle = `rgba(240, 253, 255, ${alpha.toFixed(3)})`;
+      water.fill();
     }
 
     // Spray droplets kicked up around the hull.
@@ -243,6 +308,24 @@
       water.arc(dx, dy, 0.7 + (i % 3) * 0.45, 0, TAU);
       water.fillStyle = `rgba(240, 253, 255, ${alpha.toFixed(3)})`;
       water.fill();
+    }
+
+    // Fast vertical streaks while the page is moving.
+    if (rush > 0.02) {
+      water.lineWidth = 1;
+      for (let i = 0; i < 5; i += 1) {
+        const sx = w * (0.16 + i * 0.17);
+        const sy = h + 40 - ((time * (150 + rush * 320) + i * 137) % (h + 80));
+        const streak = water.createLinearGradient(0, sy, 0, sy - 42);
+        streak.addColorStop(0, "rgba(220, 250, 255, 0)");
+        streak.addColorStop(0.5, `rgba(220, 250, 255, ${(0.12 * rush).toFixed(3)})`);
+        streak.addColorStop(1, "rgba(220, 250, 255, 0)");
+        water.strokeStyle = streak;
+        water.beginPath();
+        water.moveTo(sx, sy);
+        water.lineTo(sx + Math.sin(i * 2.1) * 2, sy - 42);
+        water.stroke();
+      }
     }
 
     // Surface shimmer at the top of the column.
@@ -286,6 +369,8 @@
     bar.classList.toggle("is-on", on);
 
     if (on) {
+      state.lastY = window.scrollY;
+      state.flow = 0;
       measure();
       render(progressFromScroll());
       startWater();

@@ -1,7 +1,7 @@
 /* ============================================================
    Interaction layer
    Entrance timing, pointer depth, drag-to-inspect, navigation,
-   scroll reveals, and the contact form.
+   scroll reveals and the contact copy buttons.
    Everything degrades gracefully (and is skipped for reduced motion).
    ============================================================ */
 (() => {
@@ -272,97 +272,6 @@
     revealables.forEach((el) => io.observe(el));
   } else {
     revealables.forEach((el) => el.classList.add("is-in"));
-  }
-
-  /* ── Contact form ─────────────────────────────────────────────
-     There is no backend on this site, so the form validates the
-     input and hands the message to the visitor's email app. It
-     never claims a message was delivered.
-     ----------------------------------------------------------- */
-  const form = document.querySelector("[data-form]");
-  if (form) {
-    const status = form.querySelector("[data-form-status]");
-    const fields = Array.from(form.querySelectorAll(".field__input"));
-    const owner = (input) => input.closest(".field");
-    const message = (input) => {
-      const slot = form.querySelector('[data-error-for="' + input.name + '"]');
-      return slot || null;
-    };
-
-    const say = (input, text) => {
-      const slot = message(input);
-      const wrap = owner(input);
-      if (slot) slot.textContent = text;
-      if (wrap) wrap.classList.toggle("has-error", Boolean(text));
-      input.setAttribute("aria-invalid", text ? "true" : "false");
-    };
-
-    const validate = (input) => {
-      const value = input.value.trim();
-      if (!value) {
-        say(input, "This field is required.");
-        return false;
-      }
-      if (input.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
-        say(input, "Enter a valid email address.");
-        return false;
-      }
-      if (input.name === "message" && value.length < 12) {
-        say(input, "A little more detail helps — 12 characters or more.");
-        return false;
-      }
-      say(input, "");
-      return true;
-    };
-
-    fields.forEach((input) => {
-      input.addEventListener("input", () => {
-        if (owner(input) && owner(input).classList.contains("has-error")) validate(input);
-      });
-      input.addEventListener("blur", () => {
-        if (input.value.trim()) validate(input);
-      });
-    });
-
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-
-      let firstBad = null;
-      fields.forEach((input) => {
-        if (!validate(input) && !firstBad) firstBad = input;
-      });
-
-      if (firstBad) {
-        if (status) status.textContent = "Please check the highlighted fields.";
-        firstBad.focus();
-        return;
-      }
-
-      const value = (name) => form.elements[name].value.trim();
-      const subject = "Portfolio inquiry — " + value("subject");
-      const body =
-        value("message") +
-        "\n\n— " + value("name") +
-        "\n" + value("email");
-
-      const mailto =
-        "mailto:ditchonjohncelvic@gmail.com" +
-        "?subject=" + encodeURIComponent(subject) +
-        "&body=" + encodeURIComponent(body);
-
-      if (status) {
-        status.textContent = "Opening your email app with the message ready to send…";
-      }
-
-      window.location.href = mailto;
-
-      window.setTimeout(() => {
-        if (status) {
-          status.textContent =
-            "If nothing opened, email ditchonjohncelvic@gmail.com directly.";
-        }
-      }, 4000);
-    });
   }
 
   /* ── Copy to clipboard ────────────────────────────────────────

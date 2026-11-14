@@ -80,18 +80,19 @@ repository URLs are invented**: only the two published systems carry a
 
 ### Contact
 
-Heading, supporting line, and five real contact rows (phone, email, Instagram,
-Facebook, GitHub). Each row opens with a glossy 3D brand tile in its real palette:
-Gmail's multicolor envelope on white, the Instagram gradient, Facebook blue,
-GitHub graphite and a green call tile. The shared treatment — top highlight,
-inner bevel, floating shadow and colored glow — gives them depth without
-changing the contact layout. Every row has a copy button that
-writes the phone number, address, handle or profile URL to the clipboard (async Clipboard API,
-with a hidden-textarea fallback), swaps its icon for a check, and announces the
-result in a polite live region. The form validates name, email, subject and
-message, then composes a `mailto:` to `ditchonjohncelvic@gmail.com` and says
-exactly that — it never claims a message was delivered, because the site has no
-backend.
+An editorial header — the statement on the left, the invitation set against its
+baseline on the right — opens onto the contact directory. The five real rows
+(phone, email, Instagram, Facebook, GitHub) sit in a two-column grid on desktop,
+with GitHub closing the list across the full width; the column collapses to one
+on narrow screens. Each row opens with a glossy 3D brand tile in its real
+palette: Gmail's multicolor envelope on white, the Instagram gradient, Facebook
+blue, GitHub graphite and a green call tile. The shared treatment — top
+highlight, inner bevel, floating shadow and colored glow — gives them depth
+without changing the contact layout. Every row has a copy button that writes the
+phone number, address, handle or profile URL to the clipboard (async Clipboard
+API, with a hidden-textarea fallback), swaps its icon for a check, and announces
+the result in a polite live region. There is no contact form: the rows
+themselves are the action, keeping the section direct and uncluttered.
 
 ### Navigation
 
@@ -101,13 +102,11 @@ support. Fixed bottom-centre, so the layout keeps the same anchor at every size.
 
 ### The ship scrollbar
 
-The right edge is a vertical ocean strip, and the **Thousand Sunny** is its
-scrollbar thumb — an inline SVG built for the site: lion figurehead with a
-layered mane, straw-hat jolly roger on the main sail, straw-hat flag at the
-masthead, grass deck, railings, portholes, stern cabin, paddle wheel and
-rigging, all shaded with layered gradients and a waterline foam pass. The ship
-bobs and rocks at rest, the sail breathes, the flag waves and the hull carries a
-soft water reflection from the strip's canvas.
+The right edge is a deep vertical ocean, and **`sunny mugiwara.png`** is its
+scrollbar thumb. The artwork is used exactly as supplied — same sideways
+formation, wisecracking lion figurehead pointing down, sails and masts toward
+the top, wooden hull on the right. It is never rotated or mirrored: the lion
+leads downward as the ship sails down the page.
 
 It is a real scrollbar, not decoration: the thumb follows `scrollY` exactly,
 can be dragged (`pointer` events, 1:1 mapping), and clicking the track sails
@@ -116,11 +115,14 @@ scrolling all keep the browser's native behaviour, because the page itself is
 never re-scrolled or wrapped — only the native scrollbar's paint is hidden.
 Below 900px the ship steps aside and the browser's own scrollbar returns.
 
-The ocean strip is a 22px 2D canvas — base gradient in CSS, drifting swell
-lines, the ship's glow and foam glints in JS — rendering at ~24 fps on a tiny
-pixel budget, paused when the tab is hidden or reduced motion is requested. The
-ship is `aria-hidden`: the native scroll semantics remain, so screen readers
-are not given a duplicate slider.
+The ocean is a 16px 2D canvas over a cylindrical CSS gradient: moving swell
+crests with shaded troughs, caustic light shafts, drifting current blobs, rising
+bubbles, a wake and foam that pulse against the hull, spray droplets, and extra
+speed streaks when the page is scrolling fast. The water reacts to scroll
+velocity and runs at ~30 fps on a tiny pixel budget, paused when the tab is
+hidden or reduced motion is requested (it then paints a single static frame).
+The ship is `aria-hidden`: native scroll semantics remain, so screen readers are
+not given a duplicate slider.
 
 ---
 
@@ -215,15 +217,16 @@ photograph is untouched in `assets/source/developer-photo.png`.
 ```
 index.html                 single page: hero, about, work, contact, ship scrollbar
 assets/
-  styles.css               layout, hero, sections, cards, form, copy buttons, navigation, motion
+  styles.css               layout, hero, sections, cards, contact directory, copy buttons, navigation, motion
   fonts.css                Sora / Inter / Instrument Serif, inlined as WOFF2 data URIs
-  main.js                  entrance, pointer depth, drag-to-inspect, nav, reveals, form, copy
+  main.js                  entrance, pointer depth, drag-to-inspect, nav, reveals, copy
   aura.js                  WebGL portrait field, mask and burst/shake system
   aura-about.js            crimson field around the About portrait
   storm.js                 page-wide lightning / embers / scroll reactivity
   hat.js                   procedural WebGL straw hat, anchored to the back
   shipbar.js               Thousand Sunny scrollbar: drag, track clicks, ocean canvas
   portrait-cutout.webp     graded portrait with alpha (hero)
+  sunny-mugiwara.png       supplied Thousand Sunny artwork, trimmed and scaled (scrollbar thumb)
   about-cutout.webp        optimised copy of who-am-i.png with alpha (about)
   og-cover.jpg             1200 × 630 social preview (rendered from the page)
   favicon.svg
@@ -232,6 +235,7 @@ assets/
     developer-photo.png    original photograph behind the hero cut-out
     who-am-i.png           about-section photograph, used unmodified
     supersaiyan.jpg        reference image for the energy field
+    sunny-mugiwara-source.png  original uploaded ship artwork (untrimmed)
 server.mjs                 zero-dependency static server for local preview
 preview.cmd                Windows double-click preview
 ```
@@ -256,7 +260,9 @@ preview.cmd                Windows double-click preview
 - **Accessibility:** semantic landmarks and section headings, a skip link, visible focus
   rings, descriptive `alt` text, AA-level text contrast, readable text above the aura
   layer, `aria-current` on the active nav link, labelled copy buttons with a polite live
-  region, and a full `prefers-reduced-motion` fallback.
+  region, and a full `prefers-reduced-motion` fallback. The ship scrollbar is
+  `aria-hidden` — native wheel, keyboard and touch scrolling keep their own semantics —
+  hides below 900px, and renders a single static ocean frame under reduced motion.
 - **Performance:** zero dependencies, self-hosted fonts, one hero image, explicit
-  dimensions (no layout shift), capped WebGL render budgets and animation limited to
-  `transform`, `opacity` and shader work.
+  dimensions (no layout shift), capped WebGL render budgets, a 30 fps ocean canvas on a
+  16px strip, and animation limited to `transform`, `opacity` and shader work.
