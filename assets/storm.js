@@ -45,7 +45,7 @@
   const maxBolts = () => (coarse.matches || compact.matches ? 5 : 8);
 
   function makeEmbers() {
-    const count = coarse.matches || compact.matches ? 20 : 34;
+    const count = coarse.matches || compact.matches ? 26 : 48;
     embers = Array.from({ length: count }, () => ({
       x: rand(0, W),
       y: rand(0, H),
@@ -79,26 +79,36 @@
     if (bolts.length >= maxBolts()) return;
 
     const side = Math.random();
+    const upward = side > 0.82;
     let x;
     let y;
+    let angle;
 
-    if (side < 0.34) {
-      x = rand(W * 0.82, W * 1.04);
-      y = rand(H * 0.04, H * 0.95);
-    } else if (side < 0.58) {
-      x = rand(W * 0.1, W * 0.95);
-      y = rand(-H * 0.02, H * 0.12);
-    } else if (side < 0.8) {
-      x = rand(W * 0.08, W * 0.95);
-      y = rand(H * 0.88, H * 1.04);
+    if (upward) {
+      // sharp upward discharge, like the aura's rising spikes
+      x = rand(W * 0.12, W * 0.88);
+      y = H * 1.02;
+      angle = -Math.PI * 0.5 + rand(-0.72, 0.72);
     } else {
-      x = rand(-W * 0.02, W * 0.1);
-      y = rand(H * 0.18, H * 0.95);
+      if (side < 0.34) {
+        x = rand(W * 0.82, W * 1.04);
+        y = rand(H * 0.04, H * 0.95);
+      } else if (side < 0.58) {
+        x = rand(W * 0.1, W * 0.95);
+        y = rand(-H * 0.02, H * 0.12);
+      } else if (side < 0.8) {
+        x = rand(W * 0.08, W * 0.95);
+        y = rand(H * 0.88, H * 1.04);
+      } else {
+        x = rand(-W * 0.02, W * 0.1);
+        y = rand(H * 0.18, H * 0.95);
+      }
+
+      const midX = W * rand(0.3, 0.78);
+      const midY = H * rand(0.18, 0.78);
+      angle = Math.atan2(midY - y, midX - x) + rand(-0.45, 0.45);
     }
 
-    const midX = W * rand(0.3, 0.78);
-    const midY = H * rand(0.18, 0.78);
-    let angle = Math.atan2(midY - y, midX - x) + rand(-0.45, 0.45);
     const length = Math.min(W, H) * (big ? rand(0.55, 0.95) : rand(0.22, 0.55));
     const segments = big ? 12 : Math.round(rand(7, 10));
     const step = length / segments;
@@ -194,10 +204,11 @@
 
     // pressure flash first, under the bolts
     if (flash > 0.01) {
-      const radius = Math.min(W, H) * 0.85;
+      const radius = Math.min(W, H) * 0.82;
       const g = ctx.createRadialGradient(flashX, flashY, 0, flashX, flashY, radius);
-      g.addColorStop(0, `rgba(255, 23, 68, ${0.1 * flash})`);
-      g.addColorStop(0.45, `rgba(176, 0, 32, ${0.045 * flash})`);
+      g.addColorStop(0, `rgba(255, 23, 68, ${0.055 * flash})`);
+      g.addColorStop(0.4, `rgba(176, 0, 32, ${0.024 * flash})`);
+      g.addColorStop(0.7, `rgba(128, 0, 32, ${0.012 * flash})`);
       g.addColorStop(1, "rgba(128, 0, 32, 0)");
       ctx.globalCompositeOperation = "lighter";
       ctx.globalAlpha = 1;
@@ -307,7 +318,13 @@
   }
 
   reset();
-  if (!reduceMotion.matches) start();
+  if (reduceMotion.matches) {
+    draw(0.016);
+  } else {
+    // Start after the entrance paints; the fixed canvas is behind
+    // the content, so a short settle is invisible to the visitor.
+    setTimeout(start, 850);
+  }
 
   let resizeTimer = 0;
   window.addEventListener("resize", () => {

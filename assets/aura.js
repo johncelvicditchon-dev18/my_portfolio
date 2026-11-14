@@ -92,6 +92,16 @@
       return n;
     }
 
+    // A field of sharp, vertically stretched flame spikes.
+    float spikeField(vec2 p, float t, float seed) {
+      vec2 f = vec2(p.x * 14.0 + seed * 0.37, p.y * 2.55 - t * 0.92);
+      f.x += sin(p.y * 7.5 + t * 0.55 + seed) * 0.5;
+      float ridge = ridges(f);
+      float fine = vnoise(f * vec2(2.6, 1.7) + vec2(4.3, seed));
+      float v = clamp(ridge * 0.74 + fine * 0.36 - 0.13, 0.0, 1.0);
+      return pow(v, 3.4);
+    }
+
     float embers(vec2 q, float t, float scale, float seed) {
       vec2 gp = vec2(q.x * scale, q.y * scale + t * 0.42);
       vec2 cell = floor(gp);
@@ -104,6 +114,21 @@
       float d = length(f - off);
       float tw = 0.55 + 0.45 * sin(t * 2.6 + h * 37.0);
       return (1.0 - smoothstep(0.0, 0.085, d)) * show * tw;
+    }
+
+    // Thin, fast streaks of rising energy.
+    float sparkStreaks(vec2 q, float t, float scale, float seed) {
+      vec2 gp = vec2(q.x * scale * 1.55, q.y * scale + t * 0.92);
+      vec2 cell = floor(gp);
+      vec2 f = fract(gp) - 0.5;
+      float h = hash21(cell + seed);
+      float h2 = hash21(cell + seed + 3.3);
+      float h3 = hash21(cell + seed + 8.7);
+      float show = step(0.72, h);
+      vec2 off = (vec2(h2, h3) - 0.5) * 0.68;
+      float d = length(vec2((f.x - off.x) * 3.6, (f.y - off.y) * 0.9));
+      float tw = 0.55 + 0.45 * sin(t * 7.5 + h * 43.0);
+      return (1.0 - smoothstep(0.0, 0.06, d)) * show * tw;
     }
 
     // One jagged lightning bolt radiating from behind the portrait.
@@ -173,7 +198,8 @@
       float ar = (uImg.z * uRes.x) / max(uImg.w * uRes.y, 1.0);
       vec2 q = (p - 0.5) * vec2(ar, 1.0);
 
-      vec4 sil = texture2D(uMask, uPad.xy + p * uPad.zw);
+      vec2 muv = uPad.xy + p * uPad.zw;
+      vec4 sil = texture2D(uMask, muv);
       float sharp = sil.r;
       float mid = sil.g;
       float wide = sil.b;
@@ -188,6 +214,19 @@
       float tight = clamp((mid - sharp) * 3.2, 0.0, 1.0) * outside;
       float rim = smoothstep(0.02, 0.30, mid) * outside;
       float halo = smoothstep(0.004, 0.16, wide) * outside;
+
+      // Silhouette gradient gives a directional crimson rim light that
+      // follows the real outline of the portrait.
+      vec2 me = vec2(0.0035, 0.0035);
+      float mL = texture2D(uMask, muv - vec2(me.x, 0.0)).g;
+      float mR = texture2D(uMask, muv + vec2(me.x, 0.0)).g;
+      float mD = texture2D(uMask, muv - vec2(0.0, me.y)).g;
+      float mU = texture2D(uMask, muv + vec2(0.0, me.y)).g;
+      vec2 grad = vec2(mR - mL, mU - mD);
+      vec2 nrm = grad / max(length(grad), 0.0001);
+      float lit = dot(nrm, normalize(vec2(-0.62, 0.78)));
+      float edgeBand = 1.0 - smoothstep(0.02, 0.30, abs(sharp - 0.5));
+      float rimLight = edgeBand * (0.30 + 0.70 * smoothstep(-0.25, 0.85, lit));
 
       float t = uTime;
       vec2 m = uMouse;
@@ -219,10 +258,66 @@
       float vert = mix(1.35, 0.55, smoothstep(0.0, 0.95, p.y));
       vert += smoothstep(0.68, 0.94, p.y) * 0.4;
 
+      // A tall crown of upward flame spikes rising past the head.
+      float crownBand = smoothstep(0.26, 0.60, p.y) * (1.0 - smoothstep(1.02, 1.56, p.y));
+      float crownWidth = 1.0 - smoothstep(0.06, 0.56, abs(q.x));
+      vec2 cp = p;
+      cp.x += m.x * 0.022 * crownBand;
+      cp.y += m.y * 0.012;
+      float spikeFar = spikeField(cp * vec2(0.92, 0.94) + vec2(0.00, 0.10), t * 0.72, 3.1);
+      float spikeMid = spikeField(cp * vec2(1.12, 1.00) + vec2(0.18, 0.03), t * 0.98, 8.7);
+      float crown = (spikeFar * 0.62 + spikeMid * 0.40) * crownBand * crownWidth * outside;
+
+      // Thin vertical rays that shoot beyond the flame mass.
+      float rayN = vnoise(vec2(cp.x * 17.0 + t * 0.25, cp.y * 2.1 - t * 0.55)) + warp.x * 0.5;
+      float rays = pow(max(0.0, sin(cp.x * 23.0 + rayN * 7.0 + t * 0.35)), 18.0);
+      rays *= smoothstep(0.42, 0.72, p.y) * (1.0 - smoothstep(1.08, 1.62, p.y)) * crownWidth * outside;
+
+      // A radial burst of pointed spikes around the head — the
+      // Super-Saiyan crown that reads above the silhouette.
+      vec2 hc = q - vec2(0.0, 0.34);
+      float rad = length(hc);
+      float ang = atan(hc.x, max(hc.y, 0.0001));
+      float angN = vnoise(vec2(ang * 2.7 + t * 0.14, t * 0.2));
+      float radialSpikes = pow(max(0.0, sin(ang * 9.0 + angN * 4.5 + t * 0.45)), 20.0);
+      float radialBand = smoothstep(0.16, 0.28, rad) * (1.0 - smoothstep(0.38, 0.62, rad));
+      radialBand *= 1.0 - smoothstep(0.72, 1.20, abs(ang));
+      radialSpikes *= radialBand * outside;
+
+      // Explicit tapered tongues: the layered spike crown.
+      float flameCrown = 0.0;
+      float crownBloom = 0.0;
+      for (int i = 0; i < 6; i++) {
+        float fi = float(i);
+        float seed = fract(sin(fi * 12.9898) * 43758.5453);
+        float seed2 = fract(sin(fi * 78.233) * 43758.5453);
+        float top = 1.08 + seed * 0.30 + sin(t * 0.9 + fi * 1.7) * 0.04;
+        float baseW = 0.020 + seed2 * 0.022;
+        float yn = clamp((p.y - 0.24) / max(top - 0.24, 0.001), 0.0, 1.0);
+        float w = baseW * pow(max(1.0 - yn, 0.0), 0.66);
+        float cx = (fi - 2.5) * 0.064 + sin(t * 0.72 + fi * 1.9) * 0.05 * yn * yn;
+        cx += (vnoise(vec2(seed * 11.0, p.y * 3.4 + t * 0.8)) - 0.5) * 0.055 * yn;
+        float dx = abs(q.x - cx);
+        float body = 1.0 - smoothstep(w * 0.15, w, dx);
+        float wide = 1.0 - smoothstep(w * 1.6, w * 4.2, dx);
+        float vmask = smoothstep(0.24, 0.33, p.y) * (1.0 - smoothstep(top - 0.045, top, p.y));
+        float flick = 0.72 + 0.28 * sin(t * (1.3 + fi * 0.11) + fi * 3.1);
+        flameCrown += body * vmask * flick;
+        crownBloom += wide * vmask * flick * 0.24;
+      }
+      flameCrown *= crownWidth * outside;
+      crownBloom *= crownWidth * outside;
+
       float energy = 0.0;
       energy += (rim * 1.45 + tight * 0.8) * (0.25 + 1.65 * tongues) * (0.45 + field) * vert;
       energy += halo * flameShape * (0.55 + 0.9 * field) * 1.75 * vert;
       energy += halo * 0.11 * (0.75 + 0.25 * sin(t * 1.4));
+      energy += crown * (1.45 + 1.15 * field) * (0.55 + 0.55 * halo + 0.35 * rim) * (0.78 + 0.22 * sin(t * 2.0));
+      energy += rays * (1.05 + 0.8 * field) * (0.35 + 0.65 * halo);
+      energy += radialSpikes * (1.15 + 0.85 * field) * (0.45 + 0.55 * sin(t * 1.7)) * 0.95;
+      energy += flameCrown * (3.1 + 1.5 * field) * (0.65 + 0.35 * sin(t * 1.4 + 1.0));
+      energy += crownBloom * (1.7 + 0.9 * field) * (0.7 + 0.3 * sin(t * 1.1 + 0.5));
+      energy += rimLight * (0.85 + 0.55 * sin(t * 2.4)) * (0.5 + 0.8 * tongues);
       energy *= focus * burst;
 
       // pressure shockwaves
@@ -248,10 +343,14 @@
       float band = sin(p.y * 13.0 - t * 2.1 + n * 6.0);
       energy += smoothstep(0.90, 1.0, band) * (rim * 0.45 + halo * 0.5) * 0.9;
 
-      // embers
+      // embers and fast rising sparks
       float part = embers(q, t, 26.0, 2.1) + embers(q, t, 47.0, 7.7) * 0.65;
       part *= 0.08 + halo * 2.0 + rim * 0.3;
       energy += part * 2.0;
+
+      float streak = sparkStreaks(q, t, 17.0, 5.3) + sparkStreaks(q, t, 31.0, 11.1) * 0.62;
+      streak *= 0.04 + halo * 1.6 + rim * 0.4 + crown * 0.55;
+      energy += streak * 2.6;
 
       // strands licking over the lower body
       float lower = 1.0 - smoothstep(0.48, 0.70, p.y);
@@ -274,6 +373,12 @@
       col = mix(col, c3, smoothstep(0.25, 0.75, e));
       col = mix(col, c4, smoothstep(0.70, 1.50, e));
       col = mix(col, vec3(1.0, 0.32, 0.45), smoothstep(1.60, 2.60, e) * 0.4);
+      col = mix(col, vec3(1.0, 0.82, 0.87), smoothstep(2.40, 4.40, e) * 0.46);
+
+      // crimson rim light on the silhouette itself
+      float rimGlow = clamp(rimLight * (0.65 + 0.35 * sin(t * 2.4)) * (0.7 + 0.5 * uBurst), 0.0, 1.0);
+      col = mix(col, vec3(1.0, 0.48, 0.58), rimGlow * 0.8);
+      a = max(a, rimGlow * 0.72 * edgeFade);
 
       // pressure cloud darkens the surrounding air
       col = mix(col, vec3(0.035, 0.0, 0.012), cloudA * 0.85);
@@ -441,7 +546,7 @@
     const h = scene.offsetHeight;
     if (!w || !h) return;
     layer.style.width = `${Math.round(w * 2.3)}px`;
-    layer.style.height = `${Math.round(h * 1.6)}px`;
+    layer.style.height = `${Math.round(h * 1.74)}px`;
   };
 
   const updateRect = () => {
@@ -472,8 +577,8 @@
     const cssH = layer.offsetHeight;
     if (!cssW || !cssH) return;
 
-    const budget = compact.matches || coarse.matches ? 220000 : 700000;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.4);
+    const budget = compact.matches || coarse.matches ? 190000 : 520000;
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
     const rawW = cssW * dpr;
     const rawH = cssH * dpr;
     const scale = Math.min(1, Math.sqrt(budget / (rawW * rawH)));
@@ -514,7 +619,7 @@
   let burstStart = -1e9;
   let nextBurst = 0;
   let shaking = 0;
-  const interval = compact.matches || coarse.matches ? 1000 / 30 : 1000 / 60;
+  const interval = compact.matches || coarse.matches ? 1000 / 30 : 1000 / 45;
 
   const setShake = (x, y) => {
     showcase.style.setProperty("--shake-x", `${x.toFixed(2)}px`);
@@ -617,7 +722,10 @@
       gl.uniform1f(U.burst, 0.35);
       draw(0);
     } else {
-      start();
+      // Let the entrance choreography paint first, then bring the
+      // continuous field online. This keeps first paint cheap.
+      clearTimeout(boot.startTimer);
+      boot.startTimer = setTimeout(start, 900);
     }
   };
 
@@ -656,6 +764,7 @@
   canvas.addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
     stop();
+    clearTimeout(boot.startTimer);
     root.classList.add("no-aura");
   });
 
