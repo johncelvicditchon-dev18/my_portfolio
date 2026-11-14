@@ -1301,7 +1301,6 @@ p { text-wrap: pretty; }
   border-top: 1px solid var(--line-soft);
 }
 .contact__list li { border-bottom: 1px solid var(--line-soft); }
-.contact__list li:last-child { grid-column: 1 / -1; }
 
 .contact__intro .copy__status { grid-column: 1 / -1; }
 
@@ -1399,6 +1398,11 @@ p { text-wrap: pretty; }
   --icon-glow: rgba(24, 119, 242, 0.92);
   background: radial-gradient(circle at 30% 20%, #79bdff 0%, #1877f2 38%, #0d5dcc 72%, #063d8c 100%);
   border-color: rgba(170, 215, 255, 0.55);
+}
+.contact__icon--linkedin {
+  --icon-glow: rgba(10, 102, 194, 0.9);
+  background: radial-gradient(circle at 30% 20%, #74caff 0%, #0a66c2 38%, #07529c 72%, #02305f 100%);
+  border-color: rgba(170, 220, 255, 0.55);
 }
 .contact__icon--github {
   --icon-glow: rgba(255, 255, 255, 0.4);
@@ -1646,7 +1650,6 @@ p { text-wrap: pretty; }
   }
   .contact__intro .section__lede { padding-bottom: 0; max-width: 48ch; }
   .contact__list { grid-template-columns: minmax(0, 1fr); }
-  .contact__list li:last-child { grid-column: auto; }
   .work__head { flex-direction: column; align-items: flex-start; }
 }
 

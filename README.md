@@ -81,18 +81,18 @@ repository URLs are invented**: only the two published systems carry a
 ### Contact
 
 An editorial header — the statement on the left, the invitation set against its
-baseline on the right — opens onto the contact directory. The five real rows
-(phone, email, Instagram, Facebook, GitHub) sit in a two-column grid on desktop,
-with GitHub closing the list across the full width; the column collapses to one
-on narrow screens. Each row opens with a glossy 3D brand tile in its real
-palette: Gmail's multicolor envelope on white, the Instagram gradient, Facebook
-blue, GitHub graphite and a green call tile. The shared treatment — top
-highlight, inner bevel, floating shadow and colored glow — gives them depth
-without changing the contact layout. Every row has a copy button that writes the
-phone number, address, handle or profile URL to the clipboard (async Clipboard
-API, with a hidden-textarea fallback), swaps its icon for a check, and announces
-the result in a polite live region. There is no contact form: the rows
-themselves are the action, keeping the section direct and uncluttered.
+baseline on the right — opens onto the contact directory. The six real rows
+(phone, email, Instagram, Facebook, LinkedIn, GitHub) sit in a balanced 2 × 3
+grid on desktop and collapse to one column on narrow screens. Each row opens
+with a glossy 3D brand tile in its real palette: Gmail's multicolor envelope on
+white, the Instagram gradient, Facebook blue, LinkedIn blue, GitHub graphite and
+a green call tile. The shared treatment — top highlight, inner bevel, floating
+shadow and colored glow — gives them depth without changing the contact layout.
+Every row has a copy button that writes the phone number, address, handle or
+profile URL to the clipboard (async Clipboard API, with a hidden-textarea
+fallback), swaps its icon for a check, and announces the result in a polite live
+region. There is no contact form: the rows themselves are the action, keeping
+the section direct and uncluttered.
 
 ### Navigation
 
