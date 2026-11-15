@@ -1728,27 +1728,30 @@ p { text-wrap: pretty; }
 }
 
 /* ============================================================
-   Thousand Sunny scrollbar — bottom ocean
-   The supplied ship artwork is the scrollbar thumb. It sails along
-   a 3D ocean strip across the bottom edge — native scrolling moves
-   it left to right, and it can be dragged (or the strip clicked) to
-   steer the page. Active from 900px up; below that the browser's
-   own scrollbar returns and the ship steps aside so touch scrolling
+   Thousand Sunny scrollbar — the ship alone
+   The supplied artwork is the scrollbar thumb, and there is no
+   visible track at all: no water, no rail, no glow. The ship simply
+   floats across the bottom edge on an invisible swell, rocking and
+   bobbing as it goes, and turns to face the way it is sailing: bow to
+   the right on the way down, bow to the left on the way back up. It
+   can be dragged (or the bottom edge clicked) to steer the page.
+   Everything runs off the real document scroll — no fake scroll
+   container. Active from 900px up; below that the browser's own
+   scrollbar returns and the ship steps aside so touch scrolling
    stays untouched.
    ============================================================ */
 
 html.has-shipbar {
-  --shipbar-w: 60px;         /* ship width (the thumb) */
-  --shipbar-h: 96px;         /* height of the whole harbour strip */
-  --shipbar-track: 18px;     /* height of the ocean band */
-  --shipbar-lift: 11px;      /* gap between the band and the edge */
-  --shipbar-inset: 20px;     /* breathing room at both ends */
-  --shipbar-reserve: 118px;  /* content gutter kept clear of the strip */
+  --shipbar-w: 68px;         /* ship width (the thumb) */
+  --shipbar-h: 104px;        /* height of the floating area */
+  --shipbar-lift: 18px;      /* hull clearance above the bottom edge */
+  --shipbar-inset: 22px;     /* breathing room at both ends */
+  --shipbar-reserve: 112px;  /* content gutter kept clear of the ship */
   scrollbar-width: none;
 }
 html.has-shipbar::-webkit-scrollbar { width: 0; height: 0; }
 
-/* Keep the footer and the last row of content clear of the ocean. */
+/* Keep the footer and the last row of content clear of the ship. */
 html.has-shipbar .site { padding-bottom: var(--shipbar-reserve); }
 
 .seabar {
@@ -1756,130 +1759,66 @@ html.has-shipbar .site { padding-bottom: var(--shipbar-reserve); }
   left: 0;
   right: 0;
   bottom: 0;
-  height: var(--shipbar-h, 96px);
+  height: var(--shipbar-h, 104px);
   z-index: 60;
+  display: none;
   pointer-events: none;
+  background: none;
   opacity: 0;
   transition: opacity 0.9s var(--ease) 0.25s;
 }
 .seabar.is-on { opacity: 1; }
 
-/* A whisper of the page's own black under the harbour, so copy that
-   slips past the bottom edge dissolves into the sea instead of being
-   sharply cut by the ship. */
-.seabar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg,
-    rgba(8, 8, 8, 0) 0%,
-    rgba(8, 8, 8, 0.28) 46%,
-    rgba(8, 8, 8, 0.62) 82%,
-    rgba(8, 8, 8, 0.72) 100%);
-  pointer-events: none;
-}
-
-/* - 3D ocean band - */
+/* Invisible click rail: the bottom edge of the viewport is the only
+   part of the "track" that stays hit-testable, so the page above it
+   is never blocked. No paint of any kind. */
 .seabar__track {
   position: absolute;
-  left: var(--shipbar-inset, 20px);
-  right: var(--shipbar-inset, 20px);
-  bottom: var(--shipbar-lift, 11px);
-  height: var(--shipbar-track, 18px);
-  border-radius: 999px;
-  overflow: hidden;
+  left: var(--shipbar-inset, 22px);
+  right: var(--shipbar-inset, 22px);
+  bottom: 0;
+  height: var(--shipbar-lift, 18px);
+  background: none;
   pointer-events: auto;
   cursor: pointer;
   touch-action: pan-y;
-  background:
-    radial-gradient(70% 180% at 50% -30%, rgba(150, 232, 255, 0.26), transparent 62%),
-    linear-gradient(180deg, #0a3d55 0%, #063044 20%, #042436 50%, #021620 78%, #01090f 100%);
-  box-shadow:
-    inset 0 2px 5px rgba(168, 240, 255, 0.2),
-    inset 0 10px 20px rgba(0, 0, 0, 0.34),
-    inset 0 -9px 18px rgba(0, 0, 0, 0.62),
-    inset 0 0 0 1px rgba(140, 226, 255, 0.1),
-    0 0 0 1px rgba(0, 0, 0, 0.5),
-    0 16px 42px rgba(0, 0, 0, 0.45),
-    0 0 46px rgba(10, 86, 120, 0.15);
-}
-.seabar__track::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(214, 246, 255, 0.2) 0%, rgba(214, 246, 255, 0.05) 20%, transparent 52%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0%, transparent 7%, transparent 93%, rgba(0, 0, 0, 0.28) 100%);
-  pointer-events: none;
-}
-.seabar__track::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(58% 130% at 50% 128%, rgba(0, 0, 0, 0.45), transparent 72%),
-    linear-gradient(180deg, transparent 58%, rgba(0, 0, 0, 0.3));
-  box-shadow: inset 0 0 14px rgba(1, 6, 12, 0.7);
-  pointer-events: none;
-}
-.seabar__water {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  pointer-events: none;
 }
 
-/* - The ship (thumb) - */
+/* - The ship (thumb): a lone hull on invisible water - */
 .seabar__ship {
   position: absolute;
-  left: var(--shipbar-inset, 20px);
-  bottom: calc(var(--shipbar-lift, 11px) + var(--shipbar-track, 18px) - 3px);
-  width: var(--shipbar-w, 60px);
+  left: var(--shipbar-inset, 22px);
+  bottom: var(--shipbar-lift, 18px);
+  width: var(--shipbar-w, 62px);
   pointer-events: none;
   will-change: transform;
   transition: transform 0.14s linear;
 }
 .seabar.is-dragging .seabar__ship { transition: none; }
 
-/* foam / refracted light around the hull */
-.seabar__ship::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -3%;
-  width: 190%;
-  height: 44%;
-  transform: translateX(-50%);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(150, 232, 255, 0.32), rgba(34, 124, 168, 0.13) 46%, transparent 72%);
-  filter: blur(6px);
-  opacity: 0.7;
-  pointer-events: none;
-  animation: sunnySpray 5.4s var(--ease-soft) infinite;
+/* Two out-of-phase layers: a slow rise and fall, and a slower roll.
+   Their prime durations never line up, so the ship never repeats a
+   loop the eye can catch. */
+.seabar__bob {
+  will-change: transform;
+  animation: shipBob 7.1s var(--ease-soft) infinite;
 }
-
-/* mirrored hull in the water just below the surface */
-.seabar__ship::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: calc(100% - 3px);
-  width: 100%;
-  height: calc(var(--shipbar-track, 18px) - 2px);
-  background: url("sunny-mugiwara.png") center bottom / 100% auto no-repeat;
-  transform: scaleY(-1);
-  opacity: 0.44;
-  filter: blur(1.1px) saturate(0.8) brightness(0.92);
-  pointer-events: none;
-}
-
-.seabar__bob { animation: sunnyBob 7.2s var(--ease-soft) infinite; }
 .seabar__sway {
-  transform-origin: 50% 88%;
-  animation: sunnySway 9.6s var(--ease-soft) infinite;
+  transform-origin: 50% 64%;
+  will-change: transform;
+  animation: shipRock 9.3s var(--ease-soft) infinite;
 }
+
+/* The hull turns to face the way it is sailing. The artwork is drawn
+   bow-left, so forward travel — scrolling down — mirrors it and the
+   lion figurehead leads to the right; scrolling back up lets it swing
+   round again. scaleX passes through 0, so the change reads as the
+   ship coming about rather than a snap. */
+.seabar__face {
+  transform: scaleX(1);
+  transition: transform 0.38s var(--ease);
+}
+.seabar.is-facing-right .seabar__face { transform: scaleX(-1); }
 
 .sunny {
   position: relative;
@@ -1887,74 +1826,72 @@ html.has-shipbar .site { padding-bottom: var(--shipbar-reserve); }
   display: block;
   width: 100%;
   height: auto;
+  transform-origin: 50% 70%;
   pointer-events: auto;
   cursor: grab;
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
-  filter:
-    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 22px rgba(56, 178, 226, 0.16));
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.62));
   transition: filter 0.35s var(--ease-soft);
 }
 .sunny:hover {
   filter:
-    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 26px rgba(76, 200, 246, 0.24))
-    brightness(1.05)
-    saturate(1.04);
+    drop-shadow(0 12px 20px rgba(0, 0, 0, 0.62))
+    drop-shadow(0 0 18px rgba(176, 0, 32, 0.2))
+    brightness(1.04);
 }
 .seabar.is-dragging .sunny,
 .seabar.is-dragging .sunny:active { cursor: grabbing; }
 body.is-shipdragging { user-select: none; cursor: grabbing; }
 
-@keyframes sunnyBob {
-  0%, 100% { transform: translate3d(0, -2px, 0); }
-  50%      { transform: translate3d(0, 2.5px, 0); }
+/* Idle swell: vertical lift + a roll that reads in 3D. */
+@keyframes shipBob {
+  0%, 100% { transform: translate3d(0, 2px, 0); }
+  50%      { transform: translate3d(0, -2.5px, 0); }
 }
-@keyframes sunnySway {
-  0%, 100% { transform: rotate(-1.3deg); }
-  50%      { transform: rotate(1.1deg); }
-}
-@keyframes sunnySpray {
-  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(0.98); }
-  50%      { opacity: 0.85; transform: translateX(-50%) scale(1.05); }
+@keyframes shipRock {
+  0%   { transform: perspective(900px) rotateZ(-1.7deg) rotateY(2.4deg); }
+  27%  { transform: perspective(900px) rotateZ(-0.5deg) rotateY(1.1deg); }
+  52%  { transform: perspective(900px) rotateZ(1.8deg) rotateY(-2.4deg); }
+  76%  { transform: perspective(900px) rotateZ(0.4deg) rotateY(-0.9deg); }
+  100% { transform: perspective(900px) rotateZ(-1.7deg) rotateY(2.4deg); }
 }
 
 /* - Scale for tablets, small laptops and very large displays - */
 @media (max-width: 1199px) {
   html.has-shipbar {
-    --shipbar-w: 52px;
-    --shipbar-track: 16px;
-    --shipbar-h: 86px;
-    --shipbar-reserve: 106px;
+    --shipbar-w: 58px;
+    --shipbar-h: 96px;
+    --shipbar-reserve: 104px;
   }
 }
 @media (min-width: 1600px) {
   html.has-shipbar {
-    --shipbar-w: 68px;
-    --shipbar-track: 20px;
-    --shipbar-h: 106px;
-    --shipbar-reserve: 130px;
+    --shipbar-w: 80px;
+    --shipbar-h: 116px;
+    --shipbar-reserve: 124px;
   }
 }
 @media (max-height: 620px) and (min-width: 900px) {
   html.has-shipbar {
-    --shipbar-w: 42px;
-    --shipbar-track: 13px;
-    --shipbar-h: 70px;
+    --shipbar-w: 48px;
+    --shipbar-h: 80px;
     --shipbar-reserve: 88px;
   }
 }
-@media (max-width: 899px) {
-  .seabar { display: none; }
+/* Below 900px the ship steps aside. Keyed to exactly the query the
+   script uses, so there is no dead pixel at the boundary where a dead
+   ship could be painted. */
+@media (min-width: 900px) {
+  .seabar { display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .seabar__bob,
-  .seabar__sway,
-  .seabar__ship::before { animation: none !important; }
+  .seabar__sway { animation: none !important; }
   .seabar,
   .seabar__ship,
+  .seabar__face,
   .sunny { transition: none; }
 }

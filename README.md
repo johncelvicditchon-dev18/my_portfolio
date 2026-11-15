@@ -106,29 +106,39 @@ at every size. Hovering a link fades in a faint glass tint under the marker.
 
 ### The ship scrollbar
 
-The bottom edge is a deep horizontal ocean, and **`sunny mugiwara.png`** is its
-scrollbar thumb. The artwork is used exactly as supplied — same sideways
-formation, wisecracking lion figurehead pointing down, sails and masts above,
-wooden hull on the right. It is never rotated or mirrored: the ship stays upright
-on the waterline while it sails from left to right, so scrolling down moves it
-toward the right end and scrolling up brings it back.
+**`sunny mugiwara.png`** is the scrollbar thumb, and it is the only thing drawn:
+there is no track, no water, no rail and no glow. The artwork is used as supplied —
+upright, lion figurehead and bow to the left, masts and sails above the wooden
+hull, stern to the right. It floats across the bottom edge on an invisible swell:
+scrolling down sails it left to right, scrolling up brings it back, and its
+position tracks `scrollY` exactly.
 
-It is a real scrollbar, not decoration: the thumb follows `scrollY` exactly,
-can be dragged (`pointer` events, 1:1 mapping on the X axis), and clicking the
-strip sails smoothly to that position. Wheel, trackpad, keyboard, anchors and
-touch scrolling all keep the browser's native behaviour, because the page itself
+The hull turns to face the way it is going. Because the drawing is bow-left,
+forward travel mirrors it so the lion figurehead leads to the right while the page
+scrolls down; scrolling back up swings it round to face left again. The flip is a
+`scaleX` transition on its own wrapper, so it passes through zero and reads as the
+ship coming about rather than snapping, and a 28px hysteresis on the scroll
+direction keeps a jittery trackpad from flickering it.
+
+The motion has to sell the sea that is not there. A perpetual CSS roll (about
+±1.8°) tilts the hull in 3D over 9.3 s while a separate 7.1 s bob lifts and
+settles it; the two prime durations never line up, so the loop is hard to catch.
+On top of that a `requestAnimationFrame` loop reads real scroll velocity — the
+harder the page moves, the wider and faster the roll (up to roughly 8°, with a
+light `rotateY` and vertical lift), and the hull leans gently against the
+direction of travel. The energy decays smoothly, so the ship settles back into
+the idle swell instead of snapping, and the loop sleeps whenever there is
+nothing to do.
+
+It is still a real scrollbar, not decoration: the thumb can be dragged
+(`pointer` events, 1:1 mapping on the X axis), and clicking the bottom edge of
+the viewport sails smoothly to that position. Wheel, trackpad, keyboard, anchors
+and touch scrolling keep the browser's native behaviour, because the page itself
 is never re-scrolled or wrapped — only the native scrollbar's paint is hidden.
-The page reserves `--shipbar-reserve` at its bottom padding so the footer and the
-last row of content never sit under the strip. Below 900px the ship steps aside
-and the browser's own scrollbar returns.
-
-The ocean is an 18px-tall 2D canvas over a cylindrical CSS gradient: swell crests
-travelling along the surface with shaded troughs, surface glints and drifting
-currents, rising bubbles, a hull reflection in the water, a wake trailing behind
-the stern, foam and spray that pulse against the hull, and extra speed streaks
-when the page is scrolling fast. The water reacts to scroll velocity and runs at
-~30 fps on a tiny pixel budget, paused when the tab is hidden or reduced motion
-is requested (it then paints a single static frame).
+The click rail is invisible and only 18px tall, so the page above it stays fully
+clickable, and the page reserves `--shipbar-reserve` at its bottom padding so
+the footer and the last row of content never sit under the ship.
+Below 900px the ship steps aside and the browser's own scrollbar returns.
 The ship is `aria-hidden`: native scroll semantics remain, so screen readers are
 not given a duplicate slider.
 
@@ -195,7 +205,7 @@ Debug hooks: `?auraTime=5` freezes the hero field at a given second, `?auraBurst
 sets its burst level and `?auraDebug=1` shows its silhouette mask. The About field reads
 `?aboutTime`, `?aboutBurst` and `?aboutDebug` the same way. `?hatDebug=1` exposes
 `window.__hatFit`, `window.__hatPlace` and `window.__hatPose`. `?shipAt=0.6` parks the
-Thousand Sunny at 60% along the bottom strip for inspection.
+Thousand Sunny 60% along the bottom edge for inspection.
 
 Each portrait and its aura mask are a matched pair. If you replace a cut-out, regenerate
 the matching mask data at the top of `assets/aura.js` or `assets/aura-about.js` (R = alpha,
@@ -238,7 +248,7 @@ assets/
   aura-about.js            mounts the same field on the About portrait + its mask
   storm.js                 page-wide lightning / embers / scroll reactivity
   hat.js                   procedural WebGL straw hat, anchored to the back
-  shipbar.js               Thousand Sunny scrollbar: drag, track clicks, ocean canvas
+  shipbar.js               Thousand Sunny scrollbar: drag, edge clicks, invisible-swell rocking
   portrait-cutout.webp     graded portrait with alpha (hero)
   sunny-mugiwara.png       supplied Thousand Sunny artwork, trimmed and scaled (scrollbar thumb)
   about-cutout.webp        optimised copy of who-am-i.png with alpha (about)
@@ -270,14 +280,15 @@ preview.cmd                Windows double-click preview
 - **Responsive:** a centred hero at every size; the about/contact grids collapse to one
   column below 900 px and the card grid steps 3 → 2 → 1. Below 900 px the portrait becomes a
   head-and-shoulders crop; the navigation stays a fixed pill in the upper-right corner
-  down to 320 px, and the ocean strip retires below 900 px.
+  down to 320 px, and the ship retires below 900 px.
   No horizontal overflow at any breakpoint.
 - **Accessibility:** semantic landmarks and section headings, a skip link, visible focus
   rings, descriptive `alt` text, AA-level text contrast, readable text above the aura
   layer, `aria-current` on the active nav link, labelled copy buttons with a polite live
   region, and a full `prefers-reduced-motion` fallback. The ship scrollbar is
   `aria-hidden` — native wheel, keyboard and touch scrolling keep their own semantics —
-  hides below 900px, and renders a single static ocean frame under reduced motion.
+  hides below 900px, and holds still under reduced motion.
 - **Performance:** zero dependencies, self-hosted fonts, one hero image, explicit
-  dimensions (no layout shift), capped WebGL render budgets, a 30 fps ocean canvas on a
-  16px strip, and animation limited to `transform`, `opacity` and shader work.
+  dimensions (no layout shift), capped WebGL render budgets, and animation limited to
+  `transform`, `opacity` and shader work — the scrollbar ship is a single image moved and
+  tilted with transforms, with its 3D rock loop asleep whenever the page is still.

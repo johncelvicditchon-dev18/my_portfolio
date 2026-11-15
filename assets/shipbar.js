@@ -1,12 +1,14 @@
 /* ============================================================
-   Thousand Sunny scrollbar — bottom ocean
-   The ship artwork is the scrollbar thumb: native scrolling sails
-   it along a 3D ocean strip across the bottom edge, left to right,
-   and it can be dragged (or the strip clicked) to steer the page.
-   Everything runs off the real document scroll — no fake scroll
-   container — so wheel, keys, touch, anchors and the browser's own
-   scrolling all keep working. Disabled below 900px, where the
-   native scrollbar returns.
+   Thousand Sunny scrollbar — the ship alone
+   The artwork is the scrollbar thumb and the only thing drawn:
+   no track, no water, no rail. Native scrolling sails it across the
+   bottom edge on an invisible swell, turning the hull to face the way
+   it is going — forward (down the page) points right, backward (up
+   the page) points left — and it can be dragged (or the edge clicked)
+   to steer the page. Everything runs off the real document scroll —
+   no fake scroll container — so wheel, keys, touch, anchors and the
+   browser's own scrolling all keep working. Disabled below 900px,
+   where the native scrollbar returns.
    ============================================================ */
 (() => {
   const bar = document.querySelector("[data-seabar]");
@@ -14,7 +16,7 @@
 
   const track = bar.querySelector("[data-seabar-track]");
   const thumb = bar.querySelector("[data-seabar-thumb]");
-  const canvas = bar.querySelector("[data-seabar-water]");
+  const art = thumb.querySelector("img");
   const root = document.documentElement;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -27,7 +29,6 @@
     travel: 1,
     thumbW: 0,
     shown: 0,
-    flow: 0,
     lastY: 0,
   };
 
@@ -36,11 +37,12 @@
     state.max = Math.max(0, root.scrollHeight - window.innerHeight);
     state.thumbW = thumb.offsetWidth || 1;
     state.travel = Math.max(1, track.clientWidth - state.thumbW);
-    sizeWater();
   }
 
   function render(p) {
     state.shown = p;
+    // Forward is to the right: progress 0 parks the ship at the left
+    // end of the strip, and scrolling down sails it across the page.
     thumb.style.transform = `translate3d(${(p * state.travel).toFixed(2)}px, 0, 0)`;
   }
 
@@ -48,16 +50,46 @@
     return state.max > 0 ? clamp(window.scrollY / state.max, 0, 1) : 0;
   }
 
+  /* ── Which way she is pointing ────────────────────────────────
+     The artwork is drawn bow-left. Sailing forward (down the page,
+     left to right) therefore mirrors her so the lion figurehead
+     leads; sailing back up the page turns her round again. A little
+     hysteresis keeps a shaky trackpad from flickering the flip.
+     ───────────────────────────────────────────────────────────── */
+  let facing = 1;  // +1 bow right (forward), −1 bow left (backward)
+  let drift = 0;   // movement logged against the current facing
+
+  function setFacing(next) {
+    if (facing === next) return;
+    facing = next;
+    drift = 0;
+    bar.classList.toggle("is-facing-right", facing > 0);
+  }
+
+  function steer(dy) {
+    if (!dy) return;
+    const sign = dy > 0 ? 1 : -1;
+    if (sign === facing) {
+      drift = 0;
+      return;
+    }
+    drift += Math.abs(dy);
+    if (drift < 28) return;
+    setFacing(sign);
+  }
+
   /* ── Scroll sync ──────────────────────────────────────────── */
   function onScroll() {
     if (!state.enabled) return;
 
-    // Scroll speed feeds the current, so fast scrolling makes the
-    // ocean rush past the hull.
+    // Hand the frame loop the distance and direction of this event:
+    // the loop turns it into swell energy and lean.
     const y = window.scrollY;
-    const dy = Math.abs(y - state.lastY);
+    const dy = y - state.lastY;
     state.lastY = y;
-    state.flow = clamp(state.flow + dy / 320, 0, 1);
+    delta += dy;
+    steer(dy);
+    startTilt();
 
     if (drag) return;
     render(progressFromScroll());
@@ -92,14 +124,16 @@
     if (!drag) return;
     const p = clamp(drag.p + (event.clientX - drag.x) / state.travel, 0, 1);
     render(p);
-    root.scrollTop = p * state.max;
+    // 1:1 with the cursor, so the page must follow instantly rather
+    // than inherit the page's smooth scroll-behaviour.
+    window.scrollTo({ top: p * state.max, behavior: "instant" });
   });
 
   thumb.addEventListener("pointerup", endDrag);
   thumb.addEventListener("pointercancel", endDrag);
   thumb.addEventListener("lostpointercapture", endDrag);
 
-  /* ── Click the strip to sail there ────────────────────────── */
+  /* ── Click the bottom edge to sail there ──────────────────── */
   track.addEventListener("click", (event) => {
     if (!state.enabled || drag) return;
     const rect = track.getBoundingClientRect();
@@ -110,251 +144,81 @@
     });
   });
 
-  /* ── 3D ocean: depth, glints, bubbles, wake and foam ──────── */
-  const water = canvas ? canvas.getContext("2d") : null;
-  const waterSize = { w: 1, h: 1 };
-  const bubbles = [];
-  const TAU = Math.PI * 2;
-  let waterFrame = null;
-  let waterLast = 0;
-  let waterPrev = 0;
+  /* ── The invisible swell ──────────────────────────────────────
+     Nothing is drawn under the ship, so the motion has to carry the
+     illusion. Two layers: a perpetual CSS roll and bob that never
+     quite repeat, and this loop, which feeds the real scroll
+     velocity into a damped, wider rock — faster page, livelier sea,
+     settling back to the idle swell the moment movement stops.
+     ───────────────────────────────────────────────────────────── */
+  let raf = null;
+  let lastT = 0;
+  let delta = 0;     // signed scroll distance gathered since the last frame
+  let energy = 0;    // 0…1, how lively the sea is
+  let lean = 0;      // current roll in degrees
+  let surge = 0;     // sustained lean from raw velocity
+  let phase = 0;
 
-  function sizeWater() {
-    if (!water) return;
-    const rect = track.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const previousW = waterSize.w;
-    waterSize.w = Math.max(1, Math.round(rect.width));
-    waterSize.h = Math.max(1, Math.round(rect.height));
-    canvas.width = Math.round(waterSize.w * dpr);
-    canvas.height = Math.round(waterSize.h * dpr);
-    water.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!bubbles.length || previousW !== waterSize.w) seedBubbles();
-    paintWater(0);
-  }
+  function tiltFrame(now) {
+    raf = null;
+    if (!state.enabled || document.hidden || reduceMotion.matches || !art) return;
 
-  function seedBubbles() {
-    bubbles.length = 0;
-    // The band is short and wide, so the bubbles are seeded along
-    // its length rather than its depth.
-    const count = Math.max(16, Math.round(waterSize.w / 56));
-    for (let i = 0; i < count; i += 1) {
-      bubbles.push({
-        x: Math.random() * waterSize.w,
-        y: Math.random() * waterSize.h,
-        r: 0.5 + Math.random() * 1.5,
-        speed: 7 + Math.random() * 18,
-        drift: Math.random() * TAU,
-        alpha: 0.16 + Math.random() * 0.34,
-      });
-    }
-  }
+    const dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 1 / 60;
+    lastT = now;
 
-  function paintWater(time) {
-    if (!water) return;
-    const { w, h } = waterSize;
-    const dt = waterPrev ? Math.min(0.1, Math.max(0, time - waterPrev)) : 0;
-    waterPrev = time;
-    state.flow = Math.max(0, state.flow - dt * 0.85);
-    const rush = state.flow;
-    water.clearRect(0, 0, w, h);
+    const moved = delta;
+    delta = 0;
 
-    // Where the hull meets the water, in track coordinates.
-    const shipX = state.thumbW * 0.5 + state.shown * state.travel;
-    const surface = h * 0.3;
-    const radius = Math.max(34, h * 1.9);
+    // Movement feeds the swell; it decays back to a calm sea.
+    energy = Math.max(energy * Math.pow(0.93, dt * 60), Math.min(1, Math.abs(moved) / 160));
 
-    // Depth: lit surface at the top, colder and darker below.
-    const depth = water.createLinearGradient(0, 0, 0, h);
-    depth.addColorStop(0, "rgba(184, 246, 255, 0.16)");
-    depth.addColorStop(0.16, "rgba(20, 110, 146, 0.07)");
-    depth.addColorStop(0.58, "rgba(2, 24, 38, 0.1)");
-    depth.addColorStop(1, "rgba(0, 4, 8, 0.32)");
-    water.fillStyle = depth;
-    water.fillRect(0, 0, w, h);
-
-    // Soft currents: slow, wide patches of blue-green light.
-    for (let i = 0; i < 3; i += 1) {
-      const bx = ((time * (14 + i * 6) + w * (0.12 + i * 0.36) + w) % (w + 360)) - 180;
-      const by = h * (0.24 + i * 0.26);
-      const span = Math.max(120, w * 0.3);
-      const blob = water.createRadialGradient(bx, by, 0, bx, by, span);
-      blob.addColorStop(0, "rgba(62, 196, 226, 0.11)");
-      blob.addColorStop(0.55, "rgba(16, 96, 130, 0.05)");
-      blob.addColorStop(1, "rgba(2, 20, 34, 0)");
-      water.fillStyle = blob;
-      water.fillRect(bx - span, 0, span * 2, h);
-    }
-
-    // Surface glints sweeping along the band.
-    for (let i = 0; i < 5; i += 1) {
-      const phase = ((time * (26 + rush * 130) + i * (w / 5) + w) % (w + 300)) - 150;
-      const span = 150;
-      const glint = water.createLinearGradient(phase - span, 0, phase + span, 0);
-      glint.addColorStop(0, "rgba(150, 238, 255, 0)");
-      glint.addColorStop(0.5, `rgba(174, 244, 255, ${(0.05 + (i % 2) * 0.015 + rush * 0.03).toFixed(3)})`);
-      glint.addColorStop(1, "rgba(150, 238, 255, 0)");
-      water.fillStyle = glint;
-      water.fillRect(phase - span, 0, span * 2, h);
-    }
-
-    // Swell crests travelling along the surface.
-    const rows = 3;
-    water.lineWidth = 1.2;
-    for (let r = 0; r < rows; r += 1) {
-      const base = h * (0.24 + r * 0.27);
-      const amp = 0.7 + r * 0.32;
-      const speed = 0.9 + r * 0.22 + rush * 1.6;
-      const freq = 0.014 + r * 0.002;
-      const offset = time * speed + r * 1.7;
-
-      water.beginPath();
-      for (let x = 0; x <= w; x += 3) {
-        const y = base + Math.sin(x * freq - offset) * amp;
-        if (x === 0) water.moveTo(x, y);
-        else water.lineTo(x, y);
-      }
-      const crest = water.createLinearGradient(0, base - amp - 1, 0, base + amp + 2);
-      crest.addColorStop(0, "rgba(226, 252, 255, 0.30)");
-      crest.addColorStop(0.45, "rgba(140, 224, 255, 0.15)");
-      crest.addColorStop(1, "rgba(0, 26, 42, 0)");
-      water.strokeStyle = crest;
-      water.stroke();
-
-      // shaded trough just under each crest
-      water.beginPath();
-      for (let x = 0; x <= w; x += 3) {
-        const y = base + 2.4 + Math.sin(x * freq - offset) * amp;
-        if (x === 0) water.moveTo(x, y);
-        else water.lineTo(x, y);
-      }
-      water.strokeStyle = "rgba(0, 14, 26, 0.26)";
-      water.stroke();
-    }
-
-    // Rising bubbles, independent of the ship's position.
-    for (const bubble of bubbles) {
-      bubble.y -= bubble.speed * (1 + rush * 2.4) * dt;
-      if (bubble.y < -3) {
-        bubble.y = h + 3;
-        bubble.x = Math.random() * w;
-      }
-      const bx = bubble.x + Math.sin(time * 1.4 + bubble.drift) * 1.6;
-      water.beginPath();
-      water.arc(bx, bubble.y, bubble.r, 0, TAU);
-      water.fillStyle = `rgba(214, 247, 255, ${bubble.alpha.toFixed(3)})`;
-      water.fill();
-    }
-
-    // Wake trailing behind the hull (the ship sails to the right).
-    const wakeLength = 150;
-    const wake = water.createLinearGradient(shipX - wakeLength, 0, shipX + 6, 0);
-    wake.addColorStop(0, "rgba(226, 251, 255, 0)");
-    wake.addColorStop(0.58, "rgba(196, 244, 255, 0.10)");
-    wake.addColorStop(1, `rgba(232, 252, 255, ${(0.3 + rush * 0.2).toFixed(3)})`);
-    water.fillStyle = wake;
-    water.fillRect(shipX - wakeLength, 0, wakeLength + 6, h);
-
-    // Refraction glow around the hull.
-    const glow = water.createRadialGradient(shipX, surface + h * 0.24, 0, shipX, surface + h * 0.24, radius);
-    glow.addColorStop(0, "rgba(164, 240, 255, 0.32)");
-    glow.addColorStop(0.45, "rgba(64, 172, 220, 0.14)");
-    glow.addColorStop(1, "rgba(0, 18, 30, 0)");
-    water.fillStyle = glow;
-    water.fillRect(shipX - radius, 0, radius * 2, h);
-
-    // Foam pulsing against the hull.
-    for (let i = 0; i < 3; i += 1) {
-      const fx = shipX + Math.sin(time * 2 + i * 1.7) * 2 + (i - 1) * 5;
-      const foam = water.createRadialGradient(fx, surface, 0, fx, surface, radius * 0.9);
-      foam.addColorStop(0, `rgba(240, 254, 255, ${(0.26 - i * 0.05 + rush * 0.08).toFixed(3)})`);
-      foam.addColorStop(1, "rgba(120, 214, 244, 0)");
-      water.fillStyle = foam;
-      water.fillRect(fx - radius, 0, radius * 2, h);
-    }
-
-    // Foam wisps peeling off behind the hull.
-    for (let i = 0; i < 6; i += 1) {
-      const phase = time * 1.25 + i * 2.1;
-      const back = 12 + ((i * 13 + Math.abs(Math.sin(phase)) * 8) % 62);
-      const fx = shipX - back;
-      const fy = h * (0.28 + 0.14 * Math.sin(phase + i));
-      const alpha = 0.14 + Math.max(0, Math.sin(phase)) * 0.16;
-      water.beginPath();
-      water.ellipse(
-        fx,
-        fy,
-        2.4 + Math.abs(Math.sin(phase)) * 3,
-        0.6 + Math.abs(Math.cos(phase)) * 0.5,
-        0,
-        0,
-        TAU,
-      );
-      water.fillStyle = `rgba(240, 253, 255, ${alpha.toFixed(3)})`;
-      water.fill();
-    }
-
-    // Spray droplets kicked up around the bow.
-    for (let i = 0; i < 7; i += 1) {
-      const phase = time * 1.8 + i * 1.27;
-      const dx = shipX + (i - 3) * 3.4 + Math.sin(phase) * 2.2;
-      const dy = surface - 1 - (i % 3) * 1.3 + Math.cos(phase) * 3.4;
-      const alpha = 0.22 + Math.max(0, Math.sin(phase)) * 0.25;
-      water.beginPath();
-      water.arc(dx, dy, 0.7 + (i % 3) * 0.4, 0, TAU);
-      water.fillStyle = `rgba(240, 253, 255, ${alpha.toFixed(3)})`;
-      water.fill();
-    }
-
-    // Fast streaks while the page is moving.
-    if (rush > 0.02) {
-      water.lineWidth = 1;
-      for (let i = 0; i < 5; i += 1) {
-        const sy = h * (0.24 + i * 0.15);
-        const sx = w + 60 - ((time * (220 + rush * 380) + i * 137) % (w + 120));
-        const streak = water.createLinearGradient(sx, 0, sx - 54, 0);
-        streak.addColorStop(0, "rgba(220, 250, 255, 0)");
-        streak.addColorStop(0.5, `rgba(220, 250, 255, ${(0.12 * rush).toFixed(3)})`);
-        streak.addColorStop(1, "rgba(220, 250, 255, 0)");
-        water.strokeStyle = streak;
-        water.beginPath();
-        water.moveTo(sx, sy);
-        water.lineTo(sx - 54, sy + Math.sin(i * 2.1) * 1.2);
-        water.stroke();
-      }
-    }
-
-    // Surface sheen along the waterline.
-    const sheen = water.createLinearGradient(0, 0, 0, Math.max(4, h * 0.34));
-    sheen.addColorStop(0, "rgba(226, 252, 255, 0.24)");
-    sheen.addColorStop(1, "rgba(226, 252, 255, 0)");
-    water.fillStyle = sheen;
-    water.fillRect(0, 0, w, Math.max(4, h * 0.34));
-  }
-
-  function waterTick(now) {
-    if (!state.enabled || document.hidden || reduceMotion.matches) {
-      waterFrame = null;
-      paintWater(0);
+    if (energy < 0.005) {
+      // Calm: hand the ship back to the idle CSS swell and sleep.
+      energy = 0;
+      lean = 0;
+      surge = 0;
+      phase = 0;
+      delta = 0;
+      art.style.transform = "";
       return;
     }
-    waterFrame = requestAnimationFrame(waterTick);
-    if (now - waterLast < 34) return; // ~30 fps is plenty for a thin strip
-    waterLast = now;
-    paintWater(now / 1000);
+
+    phase += dt * (2.6 + energy * 5.6);
+
+    // The hull lags a little behind the direction of travel: sailing
+    // forward lifts the bow, backing up lets it dip.
+    const wantSurge = clamp(moved * 0.14, -4, 4);
+    surge += (wantSurge - surge) * Math.min(1, dt * 8);
+
+    // …and the swell adds a wider, damped roll on top of it.
+    const want = surge + Math.sin(phase) * (0.9 + energy * 5.6);
+    lean += (want - lean) * Math.min(1, dt * 10);
+
+    const lift = Math.sin(phase * 0.9 + 1) * (0.5 + energy * 2.2);
+
+    art.style.transform =
+      `translate3d(0, ${lift.toFixed(2)}px, 0) ` +
+      `perspective(820px) rotateZ(${lean.toFixed(2)}deg) ` +
+      `rotateY(${(-lean * 0.55).toFixed(2)}deg)`;
+
+    raf = requestAnimationFrame(tiltFrame);
   }
 
-  function startWater() {
-    if (waterFrame !== null || !state.enabled || document.hidden || reduceMotion.matches) return;
-    paintWater(0);
-    waterLast = performance.now();
-    waterFrame = requestAnimationFrame(waterTick);
+  function startTilt() {
+    if (raf !== null || !state.enabled || document.hidden || reduceMotion.matches || !art) return;
+    lastT = 0;
+    raf = requestAnimationFrame(tiltFrame);
   }
 
-  function stopWater() {
-    if (waterFrame !== null) cancelAnimationFrame(waterFrame);
-    waterFrame = null;
-    paintWater(0);
+  function stopTilt() {
+    if (raf !== null) cancelAnimationFrame(raf);
+    raf = null;
+    energy = 0;
+    lean = 0;
+    surge = 0;
+    phase = 0;
+    delta = 0;
+    if (art) art.style.transform = "";
   }
 
   /* ── Enable / disable with the breakpoint ─────────────────── */
@@ -365,14 +229,14 @@
     bar.classList.toggle("is-on", on);
 
     if (on) {
+      facing = 1;
+      drift = 0;
+      bar.classList.add("is-facing-right");
       state.lastY = window.scrollY;
-      state.flow = 0;
       measure();
       render(progressFromScroll());
-      startWater();
-    } else {
-      stopWater();
     }
+    stopTilt();
   }
 
   function refresh() {
@@ -387,22 +251,21 @@
   window.addEventListener("resize", refresh, { passive: true });
   window.addEventListener("load", refresh);
 
-  const shipImage = thumb.querySelector("img");
-  if (shipImage) {
-    if (shipImage.complete) refresh();
-    else shipImage.addEventListener("load", refresh, { once: true });
+  if (art) {
+    if (art.complete) refresh();
+    else art.addEventListener("load", refresh, { once: true });
   }
 
   wide.addEventListener("change", (event) => setEnabled(event.matches));
 
   reduceMotion.addEventListener("change", () => {
-    if (reduceMotion.matches) stopWater();
-    else startWater();
+    if (reduceMotion.matches) stopTilt();
+    else if (state.enabled) startTilt();
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopWater();
-    else startWater();
+    if (document.hidden) stopTilt();
+    else startTilt();
   });
 
   if ("ResizeObserver" in window) {
