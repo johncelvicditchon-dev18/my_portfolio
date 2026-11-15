@@ -131,22 +131,24 @@ not given a duplicate slider.
 
 The aura is three cooperating layers — all dependency-free:
 
-1. **Hero portrait field (WebGL, `assets/aura.js`)** — a screen-blended canvas wrapped around
-   the figure, with a rising flame crown, layered spikes and silhouette rim light.
-2. **About portrait field (2D canvas, `assets/aura-about.js`)** — the same crimson
-   language around `assets/source/who-am-i.png`: layered flame tongues, sharp spikes, pressure rings,
-   black lightning, embers and fast sparks. It sits behind the cut-out, so the portrait
-   itself is never recoloured.
-3. **Page storm (2D canvas, `assets/storm.js`)** — a fixed full-viewport layer behind the
+1. **Portrait field (WebGL, `assets/aura-field.js` mounted by `assets/aura.js` and
+   `assets/aura-about.js`)** — one screen-blended shader mounted twice: on the hero portrait
+   and on the "Who I am" cut-out. Both use the same palette, flame crown, shockwave rings,
+   black lightning, rim light and burst rhythm, each driven by its own baked silhouette mask.
+2. **Page storm (2D canvas, `assets/storm.js`)** — a fixed full-viewport layer behind the
    content that keeps black-and-crimson lightning, embers, upward discharges and pressure
    flashes alive across the entire site, and reacts to scrolling with extra strikes. Soft
    crimson flame columns in the ambient layer carry the low ground fire.
 
-### Portrait field
+### Portrait fields
 
-- **Silhouette mask:** a 548 × 731 texture baked from the portrait's own alpha channel.
-  R is the sharp silhouette, G a 14 px blur and B an 80 px blur. This is what lets the
-  energy wrap the real body instead of a generic oval.
+- **One engine:** `assets/aura-field.js` holds the fragment shader and the whole render,
+  sizing, burst and lifecycle system. `aura.js` and `aura-about.js` only supply the canvas,
+  the mask and the layer geometry, so both sections stay pixel-identical in style.
+- **Silhouette masks:** baked from each cut-out's own alpha channel. R is the sharp
+  silhouette, G a 14 px blur and B an 80 px blur, all padded by ~41 % of the image width so
+  the energy can bloom past the body. Hero: 548 × 731. About: 548 × 569. This is what lets
+  the energy wrap the real body instead of a generic oval.
 - **Layers:** dark burgundy pressure cloud → crimson field → a tall Super-Saiyan-inspired
   crown of tapered flame tongues and radial spikes → expanding shockwave rings with air
   shimmer → drifting embers and fast vertical sparks → black lightning.
@@ -155,22 +157,23 @@ The aura is three cooperating layers — all dependency-free:
 - **Lightning:** procedurally generated jagged bolts with sharp bends, a black core,
   a crimson rim and a soft red bloom. Four strike bolts plus two continuous arcs
   surround the figure; extra bolts fire during bursts.
-- **Pressure:** bursts every 5.5–9.7 s raise the field, trigger a brief camera shake on the
-  portrait stage, and add large discharges.
-- **Pointer:** moving near the portrait intensifies the field; the stage tilts with the
-  cursor as before.
-- **Performance:** the canvas renders at a capped pixel budget (≈520k desktop / 190k mobile),
-  30 fps on small or touch devices and 45 fps elsewhere, pauses off-screen and when the tab
-  is hidden. WebGL failure falls back to a CSS-only glow and hides the hat;
+- **Pressure:** bursts every 5.5–9.7 s raise the field and add large discharges; on the
+  hero they also trigger a brief camera shake on the portrait stage.
+- **Pointer:** moving near either portrait intensifies that field; the hero stage still
+  tilts with the cursor.
+- **Performance:** each canvas renders at a capped pixel budget (≈520k desktop / 190k
+  mobile), 30 fps on small or touch devices and 45 fps elsewhere, pauses off-screen and when
+  the tab is hidden. WebGL failure falls back to a CSS-only glow and hides that canvas;
   `prefers-reduced-motion` renders a single static frame with no shake or animation.
 
 ### About portrait field
 
-- Positioned behind the `assets/source/who-am-i.png` cut-out, so the figure occludes the energy.
-- Fifteen layered flame tongues (nine on compact screens), eight sharp energy spikes,
-  a pressure ring, procedural black-core lightning, embers and vertical spark streaks.
-- Static frame under `prefers-reduced-motion`; 30 fps on touch/small screens, 36 fps on
-  desktop, pixel-budgeted and paused when the portrait is off-screen.
+- Runs the same shader above `assets/about-cutout.webp` (never behind it), so the rim light
+  and flames sit on the figure's edge and read as radiating from the body.
+- The card is a wide bust crop, so the field is not widened past the photo: the canvas
+  edges coincide with the photo edges and the shader's own edge fade closes the frame.
+- Tuned to the same intensity as the hero (1.15 desktop / 0.9 touch), with its own mask,
+  burst cadence and paused-off-screen behaviour.
 
 ### Page storm
 
@@ -181,15 +184,17 @@ The aura is three cooperating layers — all dependency-free:
 - Extra strikes fire while scrolling; the canvas is pixel-budgeted and capped at 30 fps.
 - Static frame under `prefers-reduced-motion`.
 
-Debug hooks: `?auraTime=5` freezes the portrait field at a given second, `?auraBurst=0.8`
-sets its burst level, and `?auraDebug=1` shows the silhouette mask. `?hatDebug=1` exposes
+Debug hooks: `?auraTime=5` freezes the hero field at a given second, `?auraBurst=0.8`
+sets its burst level and `?auraDebug=1` shows its silhouette mask. The About field reads
+`?aboutTime`, `?aboutBurst` and `?aboutDebug` the same way. `?hatDebug=1` exposes
 `window.__hatFit`, `window.__hatPlace` and `window.__hatPose`. `?shipAt=0.6` parks the
 Thousand Sunny at 60% down the track for inspection.
 
-The portrait and the aura mask are a matched pair. If you replace the portrait, the mask
-data near the top of `assets/aura.js` must be regenerated from the new cut-out (or hide the
-canvas and let the CSS fallback carry the scene). The hat anchors (`HEAD_X`, `HEAD_W`,
-`BACK_X`, `BACK_Y`) also assume the current cut-out's framing.
+Each portrait and its aura mask are a matched pair. If you replace a cut-out, regenerate
+the matching mask data at the top of `assets/aura.js` or `assets/aura-about.js` (R = alpha,
+G = 14 px blur, B = 80 px blur, padded by ~41% of the image width), or hide that canvas and
+let the CSS fallback carry the scene. The hero hat anchors (`HEAD_X`, `HEAD_W`, `BACK_X`,
+`BACK_Y`) also assume the current hero cut-out's framing.
 
 ---
 
@@ -221,8 +226,9 @@ assets/
   styles.css               layout, hero, sections, cards, contact directory, copy buttons, navigation, motion
   fonts.css                Sora / Inter / Instrument Serif, inlined as WOFF2 data URIs
   main.js                  entrance, pointer depth, drag-to-inspect, nav, reveals, copy
-  aura.js                  WebGL portrait field, mask and burst/shake system
-  aura-about.js            crimson field around the About portrait
+  aura-field.js            shared WebGL energy-field engine (shader, masks, bursts)
+  aura.js                  mounts the field on the hero portrait + its mask
+  aura-about.js            mounts the same field on the About portrait + its mask
   storm.js                 page-wide lightning / embers / scroll reactivity
   hat.js                   procedural WebGL straw hat, anchored to the back
   shipbar.js               Thousand Sunny scrollbar: drag, track clicks, ocean canvas

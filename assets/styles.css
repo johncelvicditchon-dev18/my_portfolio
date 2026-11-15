@@ -916,14 +916,18 @@ p { text-wrap: pretty; }
   pointer-events: none;
 }
 
-/* Layered crimson field wrapping the About portrait. The canvas sits
-   behind the cut-out, so the figure occludes the energy and keeps a
-   clean silhouette while flames, spikes and lightning surround it. */
+/* Layered crimson field wrapping the About portrait. It is the same
+   WebGL field as the hero (assets/aura-field.js) mounted above the
+   cut-out, so the silhouette rim light and rising crown sit on top
+   of the photo instead of behind it. The layer is sized in JS. */
 .about__aura {
   position: absolute;
-  inset: -34% -22% -14%;
-  z-index: 0;
+  top: 50%;
+  left: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
   pointer-events: none;
+  mix-blend-mode: screen;
 }
 .about-aura {
   position: absolute;
@@ -932,13 +936,12 @@ p { text-wrap: pretty; }
   width: 100%;
   height: 100%;
   pointer-events: none;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
   opacity: 0;
-  transition: opacity 1.6s var(--ease);
-  -webkit-mask-image: radial-gradient(ellipse 94% 98% at 50% 54%, #000 66%, rgba(0, 0, 0, 0.72) 84%, transparent 100%);
-  mask-image: radial-gradient(ellipse 94% 98% at 50% 54%, #000 66%, rgba(0, 0, 0, 0.72) 84%, transparent 100%);
+  transition: opacity 2s var(--ease);
 }
-.about-aura.is-live { opacity: 1; }
+.about-aura.is-live { opacity: 0.96; }
+.no-about-aura .about__aura { display: none; }
 
 .about__frame picture { display: block; position: relative; z-index: 2; }
 .about__frame picture img {
@@ -989,6 +992,8 @@ p { text-wrap: pretty; }
   opacity: 0.42;
 }
 .about__media figcaption {
+  position: relative;
+  z-index: 5;
   margin-top: 1rem;
   font-family: var(--sans);
   font-size: clamp(0.46rem, 0.55vw, 0.55rem);
@@ -1510,7 +1515,7 @@ p { text-wrap: pretty; }
 .foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   padding-top: clamp(0.6rem, 1.4vh, 1rem);
   font-family: var(--sans);
@@ -1652,7 +1657,6 @@ p { text-wrap: pretty; }
   .section { padding-block: clamp(2.8rem, 8vh, 5rem); }
   .about__grid { grid-template-columns: minmax(0, 1fr); }
   .about__media { max-width: 30rem; }
-  .about__aura { inset: -30% 0 -12%; }
   .about__frame::before { inset: -14% -2% -8%; }
   .contact__intro {
     grid-template-columns: minmax(0, 1fr);
