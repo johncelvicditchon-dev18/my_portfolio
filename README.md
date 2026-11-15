@@ -6,7 +6,8 @@ Mugiwara straw hat carried on the character's back, and a live
 Conqueror's-Haki-inspired energy field across the whole page.
 
 Three sections — **About**, **Work**, **Contact** — with a floating three-link
-navigation and a Thousand Sunny scrollbar that sails down the right edge.
+navigation in the upper-right corner and a Thousand Sunny scrollbar that sails across
+the bottom edge.
 
 No frameworks, no build step, no external requests.
 
@@ -99,29 +100,35 @@ the section direct and uncluttered.
 
 Exactly three links, glass pill, sliding maroon marker, active section tracking
 via `IntersectionObserver`, `aria-current` on the active link, and full keyboard
-support. Fixed bottom-centre, so the layout keeps the same anchor at every size.
+support. Fixed to the upper-right of the viewport, aligned with the content gutter and
+sitting just below the editorial corner bracket, so the layout keeps the same anchor
+at every size. Hovering a link fades in a faint glass tint under the marker.
 
 ### The ship scrollbar
 
-The right edge is a deep vertical ocean, and **`sunny mugiwara.png`** is its
+The bottom edge is a deep horizontal ocean, and **`sunny mugiwara.png`** is its
 scrollbar thumb. The artwork is used exactly as supplied — same sideways
-formation, wisecracking lion figurehead pointing down, sails and masts toward
-the top, wooden hull on the right. It is never rotated or mirrored: the lion
-leads downward as the ship sails down the page.
+formation, wisecracking lion figurehead pointing down, sails and masts above,
+wooden hull on the right. It is never rotated or mirrored: the ship stays upright
+on the waterline while it sails from left to right, so scrolling down moves it
+toward the right end and scrolling up brings it back.
 
 It is a real scrollbar, not decoration: the thumb follows `scrollY` exactly,
-can be dragged (`pointer` events, 1:1 mapping), and clicking the track sails
-smoothly to that position. Wheel, trackpad, keyboard, anchors and touch
-scrolling all keep the browser's native behaviour, because the page itself is
-never re-scrolled or wrapped — only the native scrollbar's paint is hidden.
-Below 900px the ship steps aside and the browser's own scrollbar returns.
+can be dragged (`pointer` events, 1:1 mapping on the X axis), and clicking the
+strip sails smoothly to that position. Wheel, trackpad, keyboard, anchors and
+touch scrolling all keep the browser's native behaviour, because the page itself
+is never re-scrolled or wrapped — only the native scrollbar's paint is hidden.
+The page reserves `--shipbar-reserve` at its bottom padding so the footer and the
+last row of content never sit under the strip. Below 900px the ship steps aside
+and the browser's own scrollbar returns.
 
-The ocean is a 16px 2D canvas over a cylindrical CSS gradient: moving swell
-crests with shaded troughs, caustic light shafts, drifting current blobs, rising
-bubbles, a wake and foam that pulse against the hull, spray droplets, and extra
-speed streaks when the page is scrolling fast. The water reacts to scroll
-velocity and runs at ~30 fps on a tiny pixel budget, paused when the tab is
-hidden or reduced motion is requested (it then paints a single static frame).
+The ocean is an 18px-tall 2D canvas over a cylindrical CSS gradient: swell crests
+travelling along the surface with shaded troughs, surface glints and drifting
+currents, rising bubbles, a hull reflection in the water, a wake trailing behind
+the stern, foam and spray that pulse against the hull, and extra speed streaks
+when the page is scrolling fast. The water reacts to scroll velocity and runs at
+~30 fps on a tiny pixel budget, paused when the tab is hidden or reduced motion
+is requested (it then paints a single static frame).
 The ship is `aria-hidden`: native scroll semantics remain, so screen readers are
 not given a duplicate slider.
 
@@ -188,7 +195,7 @@ Debug hooks: `?auraTime=5` freezes the hero field at a given second, `?auraBurst
 sets its burst level and `?auraDebug=1` shows its silhouette mask. The About field reads
 `?aboutTime`, `?aboutBurst` and `?aboutDebug` the same way. `?hatDebug=1` exposes
 `window.__hatFit`, `window.__hatPlace` and `window.__hatPose`. `?shipAt=0.6` parks the
-Thousand Sunny at 60% down the track for inspection.
+Thousand Sunny at 60% along the bottom strip for inspection.
 
 Each portrait and its aura mask are a matched pair. If you replace a cut-out, regenerate
 the matching mask data at the top of `assets/aura.js` or `assets/aura-about.js` (R = alpha,
@@ -262,7 +269,8 @@ preview.cmd                Windows double-click preview
   strikes, pressure bursts, scroll reveals and the navigation marker.
 - **Responsive:** a centred hero at every size; the about/contact grids collapse to one
   column below 900 px and the card grid steps 3 → 2 → 1. Below 900 px the portrait becomes a
-  head-and-shoulders crop; the navigation stays a fixed bottom pill down to 320 px.
+  head-and-shoulders crop; the navigation stays a fixed pill in the upper-right corner
+  down to 320 px, and the ocean strip retires below 900 px.
   No horizontal overflow at any breakpoint.
 - **Accessibility:** semantic landmarks and section headings, a skip link, visible focus
   rings, descriptive `alt` text, AA-level text contrast, readable text above the aura

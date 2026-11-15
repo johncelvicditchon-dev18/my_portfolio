@@ -742,12 +742,12 @@ p { text-wrap: pretty; }
 .fx--spark-b .spark { width: 8px; height: 8px; opacity: 0.45; animation-delay: -2.5s; }
 
 /* ============================================================
-   Floating navigation
+   Floating navigation — upper right
    ============================================================ */
 .nav {
   position: fixed;
-  left: 50%;
-  bottom: clamp(0.9rem, 2.4vh, 1.75rem);
+  top: clamp(2.7rem, 4.6vh, 3.3rem);
+  right: var(--pad-x);
   z-index: 6;
   display: flex;
   align-items: center;
@@ -761,7 +761,6 @@ p { text-wrap: pretty; }
   box-shadow:
     0 24px 60px -30px rgba(0, 0, 0, 0.95),
     0 1px 0 rgba(255, 255, 255, 0.06) inset;
-  transform: translateX(-50%);
   animation: navIn 1.4s var(--ease) 0.9s both;
 }
 
@@ -776,10 +775,15 @@ p { text-wrap: pretty; }
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.55);
-  transition: color 0.45s var(--ease);
+  transition:
+    color 0.45s var(--ease),
+    background-color 0.45s var(--ease);
 }
 .nav__link:hover,
-.nav__link:focus-visible,
+.nav__link:focus-visible {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.055);
+}
 .nav__link.is-active { color: #fff; }
 
 .nav__marker {
@@ -1597,8 +1601,8 @@ p { text-wrap: pretty; }
   to   { opacity: 1; transform: none; }
 }
 @keyframes navIn {
-  from { opacity: 0; transform: translate(-50%, 14px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translate3d(0, -14px, 0); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* - Responsive - */
@@ -1618,6 +1622,7 @@ p { text-wrap: pretty; }
 
 @media (max-width: 900px) {
   .site { padding-top: clamp(1.3rem, 3vh, 2rem); }
+  .nav { top: 2.6rem; }
 
   .identity__role::before { display: none; }
 
@@ -1690,7 +1695,7 @@ p { text-wrap: pretty; }
   .copy { width: 28px; height: 28px; }
   .github-cta { padding: 0.85rem 1.1rem; gap: 0.7em; letter-spacing: 0.18em; }
   .github-cta__icon { width: 16px; height: 16px; }
-  .nav { bottom: 0.7rem; }
+  .nav { top: 2.15rem; right: 1.15rem; }
   .nav__link { padding: 0.58rem 0.85rem; letter-spacing: 0.2em; }
   .foot { font-size: 0.45rem; letter-spacing: 0.18em; }
   .frame { inset: 10px; }
@@ -1723,34 +1728,35 @@ p { text-wrap: pretty; }
 }
 
 /* ============================================================
-   Thousand Sunny scrollbar
-   The supplied ship artwork is the scrollbar thumb. It sails down
-   a 3D ocean column on the right edge — native scrolling moves it,
-   and it can be dragged or the track clicked to steer the page.
-   Active from 900px up; below that the browser's own scrollbar
-   returns and the ship steps aside so touch scrolling stays
-   untouched.
+   Thousand Sunny scrollbar — bottom ocean
+   The supplied ship artwork is the scrollbar thumb. It sails along
+   a 3D ocean strip across the bottom edge — native scrolling moves
+   it left to right, and it can be dragged (or the strip clicked) to
+   steer the page. Active from 900px up; below that the browser's
+   own scrollbar returns and the ship steps aside so touch scrolling
+   stays untouched.
    ============================================================ */
 
 html.has-shipbar {
-  --shipbar-w: 48px;        /* ship width (the thumb) */
-  --shipbar-track: 16px;     /* width of the ocean column */
-  --shipbar-inset: 12px;     /* breathing room at both ends */
-  --shipbar-reserve: 64px;  /* content gutter kept clear of the ship */
+  --shipbar-w: 60px;         /* ship width (the thumb) */
+  --shipbar-h: 96px;         /* height of the whole harbour strip */
+  --shipbar-track: 18px;     /* height of the ocean band */
+  --shipbar-lift: 11px;      /* gap between the band and the edge */
+  --shipbar-inset: 20px;     /* breathing room at both ends */
+  --shipbar-reserve: 118px;  /* content gutter kept clear of the strip */
   scrollbar-width: none;
 }
 html.has-shipbar::-webkit-scrollbar { width: 0; height: 0; }
 
-/* Keep the centred composition clear of the ship. */
-html.has-shipbar .site { padding-right: max(var(--pad-x), var(--shipbar-reserve)); }
-html.has-shipbar .nav {
-  left: calc(50% + (var(--pad-x) - var(--shipbar-reserve)) / 2);
-}
+/* Keep the footer and the last row of content clear of the ocean. */
+html.has-shipbar .site { padding-bottom: var(--shipbar-reserve); }
 
 .seabar {
   position: fixed;
-  inset: 0 0 0 auto;
-  width: var(--shipbar-w, 48px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--shipbar-h, 96px);
   z-index: 60;
   pointer-events: none;
   opacity: 0;
@@ -1758,37 +1764,52 @@ html.has-shipbar .nav {
 }
 .seabar.is-on { opacity: 1; }
 
-/* - 3D ocean column - */
+/* A whisper of the page's own black under the harbour, so copy that
+   slips past the bottom edge dissolves into the sea instead of being
+   sharply cut by the ship. */
+.seabar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(8, 8, 8, 0) 0%,
+    rgba(8, 8, 8, 0.28) 46%,
+    rgba(8, 8, 8, 0.62) 82%,
+    rgba(8, 8, 8, 0.72) 100%);
+  pointer-events: none;
+}
+
+/* - 3D ocean band - */
 .seabar__track {
   position: absolute;
-  top: var(--shipbar-inset, 12px);
-  bottom: var(--shipbar-inset, 12px);
-  right: 5px;
-  width: var(--shipbar-track, 16px);
+  left: var(--shipbar-inset, 20px);
+  right: var(--shipbar-inset, 20px);
+  bottom: var(--shipbar-lift, 11px);
+  height: var(--shipbar-track, 18px);
   border-radius: 999px;
   overflow: hidden;
   pointer-events: auto;
   cursor: pointer;
   touch-action: pan-y;
   background:
-    radial-gradient(150% 30% at 50% -10%, rgba(150, 232, 255, 0.22), transparent 66%),
-    linear-gradient(90deg, #01070d 0%, #031a26 10%, #063044 32%, #084258 52%, #052a3c 74%, #010b13 100%);
+    radial-gradient(70% 180% at 50% -30%, rgba(150, 232, 255, 0.26), transparent 62%),
+    linear-gradient(180deg, #0a3d55 0%, #063044 20%, #042436 50%, #021620 78%, #01090f 100%);
   box-shadow:
-    inset 2px 0 5px rgba(168, 240, 255, 0.14),
-    inset -12px 0 20px rgba(0, 0, 0, 0.68),
+    inset 0 2px 5px rgba(168, 240, 255, 0.2),
+    inset 0 10px 20px rgba(0, 0, 0, 0.34),
+    inset 0 -9px 18px rgba(0, 0, 0, 0.62),
     inset 0 0 0 1px rgba(140, 226, 255, 0.1),
-    inset 0 -30px 40px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(0, 0, 0, 0.55),
-    0 22px 52px rgba(0, 0, 0, 0.5),
-    0 0 46px rgba(10, 86, 120, 0.16);
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 16px 42px rgba(0, 0, 0, 0.45),
+    0 0 46px rgba(10, 86, 120, 0.15);
 }
 .seabar__track::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(80% 12% at 50% 0%, rgba(220, 250, 255, 0.28), transparent 70%),
-    linear-gradient(90deg, rgba(214, 246, 255, 0.12) 0%, transparent 22%, transparent 62%, rgba(0, 0, 0, 0.32) 100%);
+    linear-gradient(180deg, rgba(214, 246, 255, 0.2) 0%, rgba(214, 246, 255, 0.05) 20%, transparent 52%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0%, transparent 7%, transparent 93%, rgba(0, 0, 0, 0.28) 100%);
   pointer-events: none;
 }
 .seabar__track::after {
@@ -1797,9 +1818,9 @@ html.has-shipbar .nav {
   inset: 0;
   border-radius: inherit;
   background:
-    linear-gradient(180deg, rgba(180, 240, 255, 0.06), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.32)),
-    radial-gradient(120% 20% at 50% 100%, rgba(0, 0, 0, 0.5), transparent 70%);
-  box-shadow: inset 0 0 18px rgba(1, 6, 12, 0.75);
+    radial-gradient(58% 130% at 50% 128%, rgba(0, 0, 0, 0.45), transparent 72%),
+    linear-gradient(180deg, transparent 58%, rgba(0, 0, 0, 0.3));
+  box-shadow: inset 0 0 14px rgba(1, 6, 12, 0.7);
   pointer-events: none;
 }
 .seabar__water {
@@ -1814,32 +1835,51 @@ html.has-shipbar .nav {
 /* - The ship (thumb) - */
 .seabar__ship {
   position: absolute;
-  top: var(--shipbar-inset, 12px);
-  right: 8px;
-  width: var(--shipbar-w, 48px);
+  left: var(--shipbar-inset, 20px);
+  bottom: calc(var(--shipbar-lift, 11px) + var(--shipbar-track, 18px) - 3px);
+  width: var(--shipbar-w, 60px);
   pointer-events: none;
   will-change: transform;
   transition: transform 0.14s linear;
 }
 .seabar.is-dragging .seabar__ship { transition: none; }
 
-/* foam / refracted light behind the hull */
+/* foam / refracted light around the hull */
 .seabar__ship::before {
   content: "";
   position: absolute;
-  right: -6px;
-  bottom: 4%;
-  width: 86%;
-  height: 34%;
-  background: radial-gradient(58% 52% at 78% 62%, rgba(150, 232, 255, 0.3), rgba(34, 124, 168, 0.12) 48%, transparent 74%);
-  filter: blur(7px);
-  opacity: 0.75;
+  left: 50%;
+  bottom: -3%;
+  width: 190%;
+  height: 44%;
+  transform: translateX(-50%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(150, 232, 255, 0.32), rgba(34, 124, 168, 0.13) 46%, transparent 72%);
+  filter: blur(6px);
+  opacity: 0.7;
   pointer-events: none;
   animation: sunnySpray 5.4s var(--ease-soft) infinite;
 }
 
+/* mirrored hull in the water just below the surface */
+.seabar__ship::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(100% - 3px);
+  width: 100%;
+  height: calc(var(--shipbar-track, 18px) - 2px);
+  background: url("sunny-mugiwara.png") center bottom / 100% auto no-repeat;
+  transform: scaleY(-1);
+  opacity: 0.44;
+  filter: blur(1.1px) saturate(0.8) brightness(0.92);
+  pointer-events: none;
+}
+
 .seabar__bob { animation: sunnyBob 7.2s var(--ease-soft) infinite; }
-.seabar__sway { animation: sunnySway 9.6s var(--ease-soft) infinite; }
+.seabar__sway {
+  transform-origin: 50% 88%;
+  animation: sunnySway 9.6s var(--ease-soft) infinite;
+}
 
 .sunny {
   position: relative;
@@ -1853,14 +1893,14 @@ html.has-shipbar .nav {
   user-select: none;
   -webkit-user-drag: none;
   filter:
-    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 22px rgba(56, 178, 226, 0.14));
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 22px rgba(56, 178, 226, 0.16));
   transition: filter 0.35s var(--ease-soft);
 }
 .sunny:hover {
   filter:
-    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 26px rgba(76, 200, 246, 0.22))
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 26px rgba(76, 200, 246, 0.24))
     brightness(1.05)
     saturate(1.04);
 }
@@ -1869,31 +1909,41 @@ html.has-shipbar .nav {
 body.is-shipdragging { user-select: none; cursor: grabbing; }
 
 @keyframes sunnyBob {
-  0%, 100% { transform: translate3d(0, -3px, 0); }
-  50%      { transform: translate3d(0, 4px, 0); }
+  0%, 100% { transform: translate3d(0, -2px, 0); }
+  50%      { transform: translate3d(0, 2.5px, 0); }
 }
 @keyframes sunnySway {
-  0%, 100% { transform: translate3d(-1.5px, 0, 0); }
-  50%      { transform: translate3d(1.5px, 0, 0); }
+  0%, 100% { transform: rotate(-1.3deg); }
+  50%      { transform: rotate(1.1deg); }
 }
 @keyframes sunnySpray {
-  0%, 100% { opacity: 0.55; transform: scale(0.98); }
-  50%      { opacity: 0.85; transform: scale(1.05); }
+  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(0.98); }
+  50%      { opacity: 0.85; transform: translateX(-50%) scale(1.05); }
 }
 
-/* - Scale for tablets and small laptops - */
+/* - Scale for tablets, small laptops and very large displays - */
 @media (max-width: 1199px) {
   html.has-shipbar {
-    --shipbar-w: 42px;
-    --shipbar-track: 14px;
-    --shipbar-reserve: 58px;
+    --shipbar-w: 52px;
+    --shipbar-track: 16px;
+    --shipbar-h: 86px;
+    --shipbar-reserve: 106px;
+  }
+}
+@media (min-width: 1600px) {
+  html.has-shipbar {
+    --shipbar-w: 68px;
+    --shipbar-track: 20px;
+    --shipbar-h: 106px;
+    --shipbar-reserve: 130px;
   }
 }
 @media (max-height: 620px) and (min-width: 900px) {
   html.has-shipbar {
-    --shipbar-w: 36px;
-    --shipbar-track: 12px;
-    --shipbar-reserve: 52px;
+    --shipbar-w: 42px;
+    --shipbar-track: 13px;
+    --shipbar-h: 70px;
+    --shipbar-reserve: 88px;
   }
 }
 @media (max-width: 899px) {
